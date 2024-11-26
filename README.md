@@ -28,8 +28,9 @@ Tailor-made mod for personal use to make my OP build viable.
 
 ## **Disclaimer**
 - **Crash Bug at Start Screen**  
-  - Hotfixed with a 10-second delay.  
-  - You must press `[SPACE]` within 10 seconds of launching the game.
+  - Hotfixed with a 10-second delay.  You must press `[SPACE]` within 10 seconds of launching the game.
+  - It's still possible to exceed max peril with force swords.
+  - Uses a modified version of the WarpUnboundTimer mod's timer.  Having both mods installed might cause conflicts.
 
 - **Warp Unbound Bug Fix**  
   - Default settings values:  
@@ -38,18 +39,3 @@ Tailor-made mod for personal use to make my OP build viable.
   - There's still a small probability of the bug occurring.  
   - You can tweak the settings to potentially find better values.
 
-- **Known Limitations**
-  - It's still possible to exceed max peril with force swords.
-  - Uses a modified version of the WarpUnboundTimer mod's timer.  
-    - Having both mods installed might cause conflicts.
-
----
-
-### **Installation**
-1. Place the mod files into the appropriate mod folder for your game.
-2. If desired, install the **Audio Plugin** to enable timer notification sounds.
-3. Tweak the settings in the configuration file to match your preferences.
-
----
-
-Feel free to contribute or report issues in the [Issues](#) section of this repository!
