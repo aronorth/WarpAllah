@@ -22,9 +22,14 @@ local warp_unbound_peril_triggered = false
 local ability_active = false -- Variable for tracking ability activation
 local warp_unbound_active = false -- Variable to track if Warp Unbound is active
 
+-- Variables for weapon identification (Module-Level)
+local is_perilous_weapon = false
+local is_forcesword = false
+
 -- Settings
 local disable_duration = mod:get("disable_duration") or 0.5
 local disable_start_delay = mod:get("disable_start_delay") or 1
+local peril_threshold = mod:get("peril_threshold") or 1.0 -- New setting for peril threshold
 
 -- Update settings when they change
 mod.on_setting_changed = function(setting_id)
@@ -32,12 +37,31 @@ mod.on_setting_changed = function(setting_id)
         disable_duration = mod:get("disable_duration") or 1
     elseif setting_id == "disable_start_delay" then
         disable_start_delay = mod:get("disable_start_delay") or 0
+    elseif setting_id == "peril_threshold" then
+        peril_threshold = mod:get("peril_threshold") or 1.0
     end
 end
 
 -- Hook into InputService to disable LMB and Reload/Quell when necessary
 mod:hook("InputService", "_get", function(func, self, action_name)
     local result = func(self, action_name)
+
+    -- Prevent Psyker Explosion functionality
+    if mod:get("prevent_psyker_explosion_enable") then
+        if prevent_explosion_active then
+            -- Disable LMB for all perilous weapons
+            if action_name == "action_one_pressed" or action_name == "action_one_hold" then
+                return false
+            end
+
+            -- Additionally disable Special Attack keys for force swords
+            if is_forcesword then
+                if action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra_release" then
+                    return false
+                end
+            end
+        end
+    end
 
     -- Warp Unbound LMB disabling
     if mod:get("warp_unbound_bug_fix_enable") then
@@ -57,16 +81,6 @@ mod:hook("InputService", "_get", function(func, self, action_name)
 
             -- Disable Reload/Quell only if Warp Unbound is active
             if warp_unbound_active and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
-                return false
-            end
-        end
-    end
-
-    -- Prevent Psyker Explosion functionality
-    if mod:get("prevent_psyker_explosion_enable") then
-        if prevent_explosion_active then
-            -- Disable LMB only
-            if action_name == "action_one_pressed" or action_name == "action_one_hold" then
                 return false
             end
         end
@@ -115,7 +129,8 @@ function mod.update(dt)
     local player_unit = player.player_unit
 
     -- Determine if the player is wielding a peril-generating weapon or ability
-    local is_perilous_weapon = false
+    is_perilous_weapon = false
+    is_forcesword = false
 
     local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
     if weapon_extension then
@@ -126,9 +141,17 @@ function mod.update(dt)
                 string.find(weapon_name, "forcestaff") or
                 weapon_name == "psyker_throwing_knives" or
                 weapon_name == "psyker_smite" or
-                weapon_name == "psyker_chain_lightning"
+                weapon_name == "psyker_chain_lightning" or
+                weapon_name == "forcesword_p1_m3" or
+                weapon_name == "forcesword_p1_m2" or
+                weapon_name == "forcesword_p1_m1"
             ) then
                 is_perilous_weapon = true
+                if weapon_name == "forcesword_p1_m3" or
+                   weapon_name == "forcesword_p1_m2" or
+                   weapon_name == "forcesword_p1_m1" then
+                    is_forcesword = true
+                end
             end
         end
     end
@@ -162,14 +185,20 @@ function mod.update(dt)
 
     -- Prevent Psyker Explosion functionality
     if mod:get("prevent_psyker_explosion_enable") and is_perilous_weapon then
-        -- Disable LMB if peril is at 100% and Warp Unbound ability is not active
-        if peril_fraction >= 1.0 and not warp_unbound_active then
-            prevent_explosion_active = true
+        -- Disable LMB if peril is at or above the threshold, Warp Unbound is not active, and ability key is not pressed
+        if peril_fraction >= peril_threshold and not warp_unbound_active and not ability_active then
+            if not prevent_explosion_active then
+                prevent_explosion_active = true
+            end
         else
-            prevent_explosion_active = false
+            if prevent_explosion_active then
+                prevent_explosion_active = false
+            end
         end
     else
-        prevent_explosion_active = false
+        if prevent_explosion_active then
+            prevent_explosion_active = false
+        end
     end
 
     -- Warp Unbound LMB disabling functionality
@@ -204,3 +233,5 @@ function mod.update(dt)
         warp_unbound_primary_attack_disabled = false
     end
 end
+
+return mod
