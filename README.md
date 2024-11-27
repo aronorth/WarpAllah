@@ -29,7 +29,6 @@ Tailor-made mod for personal use to make my OP build viable.
 ## **Disclaimer**
 - **Bugs**  
   - Crash Bug at Start Screen, hotfixed with a 10-second delay.  You must press `[SPACE]` within 10 seconds of launching the game.
-  - It's still possible to exceed max peril with force swords.
   - Possible to still explode with Assail if spam-throwing knives while just below 100% peril.
   - Uses a modified version of the WarpUnboundTimer mod's timer.  Having both mods installed might cause conflicts.
 
