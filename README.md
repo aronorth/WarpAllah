@@ -23,6 +23,7 @@ Tailor-made mod for personal use to make my OP build viable.
 ## **Mod Requirements**
 - **Audio Plugin** _(Optional)_
   - Without the Audio Plugin, the timer notification sound will not play.
+  - [Audio Plugin Mod on NexusMods](https://www.nexusmods.com/warhammer40kdarktide/mods/196)
 
 ---
 
