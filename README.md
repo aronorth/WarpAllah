@@ -34,8 +34,8 @@ Tailor-made mod for personal use to make my OP build viable.
 
 - **Warp Unbound Bug Fix**  
   - Default settings values:  
-    - `Disable_Duration=0.7`  
-    - `Disable_Start_Delay=0.9`  
+    - `Disable_Duration = 0.7`  
+    - `Disable_Start_Delay = 0.9`  
   - There's still a small probability of the bug occurring.  
   - You can tweak the settings to potentially find better values.
 ## **Build I made this mod for**
