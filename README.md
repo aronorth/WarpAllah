@@ -39,6 +39,7 @@ Tailor-made mod for personal use to make my OP build viable.
     - `Disable_Start_Delay=0.9`  
   - There's still a small probability of the bug occurring.  
   - You can tweak the settings to potentially find better values.
- 
+## **Build I made this mod for**
+I was exploring how to make the most broken build while skirting around the ToS with mods and macros, this is what I came up with.
   - ![alt text](https://github.com/Kevinna01/WarpGod/blob/main/Build.png?raw=true)
 
