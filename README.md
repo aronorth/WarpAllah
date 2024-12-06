@@ -8,21 +8,12 @@ Tailor-made mod for personal use to make my OP build viable.
 ## **Features**
 - **Warp Unbound Talent Bug Hotfix**
   - Fixes a bug affecting the Electrokinetic Staff, Purgatus Staff, and Smite.
-  - Prevents unexpected explosions by disabling the Primary Attack during a small time frame.
-  
-- **Warp Unbound Timer**
-  - Modified version of the WarpUnboundTimer mod's timer.
-  - Plays an audio notification when the timer is about to end.
+  - Prevents unexpected explosions by disabling additional inputs which would generate peril for a small time window when the bug usually occurs.
   
 - **Prevent Peril of the Warp Explosion**
+  - Prevents explosions by disabling additional inputs which would generate peril when at 100% peril.
   - Very overpowered feature; can be disabled.
   - Use at your own discretion.
-
----
-
-## **Mod Requirements**
-- **[Audio Plugin](https://www.nexusmods.com/warhammer40kdarktide/mods/196)** _(Optional)_
-  - Without the Audio Plugin, the timer notification sound will not play.
 
 ---
 
@@ -30,7 +21,6 @@ Tailor-made mod for personal use to make my OP build viable.
 - **Bugs**  
   - Crash Bug at Start Screen, hotfixed with a 10-second delay.  You must press `[SPACE]` within 10 seconds of launching the game.
   - Possible to still explode with Assail if spam-throwing knives while just below 100% peril.
-  - Uses a modified version of the WarpUnboundTimer mod's timer.  Having both mods installed might cause conflicts.
 
 - **Warp Unbound Bug Fix**  
   - Default settings values:  
