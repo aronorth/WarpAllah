@@ -20,7 +20,8 @@ Tailor-made mod for personal use to make my OP build viable.
 ## **Disclaimer**
 - **Bugs**  
   - Crash Bug at Start Screen, hotfixed with a 10-second delay.  You must press `[SPACE]` within 10 seconds of launching the game.
-  - Possible to still explode with Assail if spam-throwing knives while just below 100% peril.
+  - Possible to still explode with Assail, if spam-throwing knives while just below 100% peril.
+  - Possible to still explode with forceswords, if pressing Special (charging) immediately after Primary attack while at 100% peril.
 
 - **Warp Unbound Bug Fix**  
   - Default settings values:  
