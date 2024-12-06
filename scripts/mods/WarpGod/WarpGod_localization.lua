@@ -1,48 +1,46 @@
-return {
+local mod = get_mod("WarpGod")
+
+local loc = {
     mod_name = {
         en = "Warp God",
     },
     mod_description = {
-        en = "Embrace the warp and achieve your full potential",
+        en = "Warp Unbound talent hotfix, Warp Unbound talent QoL, Peril of the Warp Explosion Prevention",
     },
-    enable_feature = {
-        en = "Enable Feature",
-    },
+    hud_scale = {
+		en = "Size Scale",
+	},
     -- Prevent Psyker Explosion
     prevent_psyker_explosion = {
         en = "Prevent Psyker Explosion",
     },
     prevent_psyker_explosion_enable = {
-        en = "Enable Prevent Psyker Explosion"
+        en = "Enable Prevent Psyker Explosion",
     },
     prevent_psyker_explosion_enable_description = {
-        en = "Disables the Left Mouse Button when peril reaches 100%% and Warp Unbound ability is not active, preventing accidental overcharge explosions. Does not apply to forceswords.",
+        en = "Disables the Left Mouse Button when peril reaches the set threshold and Warp Unbound ability is not active, preventing accidental overcharge explosions.",
     },
-    -- Warp Unbound Timer
-    warp_unbound_timer = {
-        en = "Show Warp Unbound Timer",
+    macro_anti_detection_enable = {
+        en = "Enable Macro Anti-Detection",
     },
-    warp_unbound_timer_enable = {
-        en = "Enable Warp Unbound Timer"
-        },
-    warp_unbound_timer_enable_description = {
-        en = "Displays a countdown timer for the Warp Unbound ability.",
+    macro_anti_detection_enable_description = {
+        en = "Disables the quell button when Psyker explosion is prevented, used to hide usage of quell-cancel macro",
     },
-    play_notification = {
-        en = "Play Notification Sound",
+    peril_threshold = {
+        en = "Peril Threshold",
     },
-    play_notification_description = {
-        en = "Plays a notification sound when the Warp Unbound timer is about to end.",
+    peril_threshold_description = {
+        en = "Set the peril level at which the Left Mouse Button is disabled to prevent explosions. Default is 100%%.", -- Escaped %%
     },
     -- Warp Unbound Bug Fix
     warp_unbound_bug_fix = {
         en = "Warp Unbound Bug Fix",
     },
     warp_unbound_bug_fix_enable = {
-        en = "Enable Warp Unbound Bug Fix"
+        en = "Enable Warp Unbound Bug Fix",
     },
     warp_unbound_bug_fix_enable_description = {
-        en = "Disables LMB for a certain amount of time when using the Warp Unbound ability to prevent a bug where the user can explode.",
+        en = "Disables LMB for a certain duration when using the Warp Unbound ability to prevent accidental explosions.",
     },
     disable_duration = {
         en = "Disable Duration",
@@ -57,3 +55,5 @@ return {
         en = "The delay (in seconds) before LMB is disabled when using the Warp Unbound ability.",
     },
 }
+
+return loc
