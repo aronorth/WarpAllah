@@ -7,7 +7,7 @@ Tailor-made mod for personal use to make my OP build viable.
 
 ## **Features**
 - **Warp Unbound Talent Bug Hotfix**
-  - Fixes a bug affecting the Electrokinetic Staff, Purgatus Staff, and Smite; where you can still explode during small interval even if Warp Unbound is activated.
+  - Fixes a bug affecting the Electrokinetic Staff, Purgatus Staff, and Smite; where you can still explode during a small time-interval even if Warp Unbound is activated.
   - Prevents unexpected explosions by disabling additional inputs which would generate peril for a small time window when the bug usually occurs.
   
 - **Prevent Peril of the Warp Explosion**
