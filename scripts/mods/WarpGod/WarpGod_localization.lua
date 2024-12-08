@@ -5,11 +5,8 @@ local loc = {
         en = "Warp God",
     },
     mod_description = {
-        en = "Warp Unbound talent hotfix, Warp Unbound talent QoL, Peril of the Warp Explosion Prevention",
+        en = "Prevent Peril of the Warp Explosion & Warp Unbound talent bug hotfix",
     },
-    hud_scale = {
-		en = "Size Scale",
-	},
     -- Prevent Psyker Explosion
     prevent_psyker_explosion = {
         en = "Prevent Psyker Explosion",
@@ -18,19 +15,19 @@ local loc = {
         en = "Enable Prevent Psyker Explosion",
     },
     prevent_psyker_explosion_enable_description = {
-        en = "Disables the Left Mouse Button when peril reaches the set threshold and Warp Unbound ability is not active, preventing accidental overcharge explosions.",
+        en = "Prevents peril-generating attacks when peril exceeds the threshold whilst Warp Unbound ability is not active.",
     },
     macro_anti_detection_enable = {
         en = "Enable Macro Anti-Detection",
     },
     macro_anti_detection_enable_description = {
-        en = "Disables the quell button when Psyker explosion is prevented, used to hide usage of quell-cancel macro",
+        en = "Prevents quelling when exceeding threshold, used to hide usage of quell-cancel macro. Default is Off.",
     },
     peril_threshold = {
         en = "Peril Threshold",
     },
     peril_threshold_description = {
-        en = "Set the peril level at which the Left Mouse Button is disabled to prevent explosions. Default is 100%%.", -- Escaped %%
+        en = "Maximum allowable peril before peril-generating attacks are disabled. Default is 1.0.",
     },
     -- Warp Unbound Bug Fix
     warp_unbound_bug_fix = {
@@ -40,19 +37,19 @@ local loc = {
         en = "Enable Warp Unbound Bug Fix",
     },
     warp_unbound_bug_fix_enable_description = {
-        en = "Disables LMB for a certain duration when using the Warp Unbound ability to prevent accidental explosions.",
+        en = "Warp Unbound last 11.5s, sometime around 10.5s there is a probability to explode with Smite, Surge & Trauma staffs. Bugfix disables attacks that generate peril during a interval.",
     },
-    disable_duration = {
+    interval1_duration = {
         en = "Disable Duration",
     },
-    disable_duration_description = {
-        en = "The duration (in seconds) for which the LMB is disabled when using the Warp Unbound ability.",
+    interval1_duration_description = {
+        en = "For the bugfix interval. Default is 0.7",
     },
-    disable_start_delay = {
-        en = "Disable Start Delay",
+    interval1_start_delay = {
+        en = "Start-delay",
     },
-    disable_start_delay_description = {
-        en = "The delay (in seconds) before LMB is disabled when using the Warp Unbound ability.",
+    interval1_start_delay_description = {
+        en = "For the Bugfix interval. Default is 0.9",
     },
 }
 
