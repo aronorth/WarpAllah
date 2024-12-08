@@ -18,28 +18,25 @@ local prevent_explosion_active = false
 -- Variables for Warp Unbound LMB disabling functionality
 local warp_unbound_bugfix_active = false
 local warp_unbound_disable_timer = 0
-local warp_unbound_peril_triggered = false
-local ability_active = false -- Tracks if the ability key has been pressed
+local ability_triggered = false -- Tracks if the ability key has been pressed
 local warp_unbound_active = false -- Tracks if Warp Unbound is currently active
+local warp_unbound_bugfix_interval1_triggered = false --Tracks if the first disabling-interval when warp unbound is active is triggered
+local warp_unbound_bugfix_interval2_triggered = false --Tracks if the second disabling-interval when warp unbound is active is triggered
 
 -- Variables for weapon identification
 local is_perilous_weapon = false
 local is_forcesword = false
 
 -- Settings with default values
-local disable_duration = mod:get("disable_duration")
-local disable_start_delay = mod:get("disable_start_delay")
+local interval1_duration = mod:get("interval1_duration")
+local interval1_start_delay = mod:get("interval1_start_delay")
 local peril_threshold = mod:get("peril_threshold")
 
 -- Update settings when they change
 mod.on_setting_changed = function(setting_id)
-    if setting_id == "disable_duration" then
-        disable_duration = mod:get("disable_duration")
-    elseif setting_id == "disable_start_delay" then
-        disable_start_delay = mod:get("disable_start_delay")
-    elseif setting_id == "peril_threshold" then
+        interval1_duration = mod:get("interval1_duration")
+        interval1_start_delay = mod:get("interval1_start_delay")
         peril_threshold = mod:get("peril_threshold")
-    end
 end
 
 -- Hook into InputService to disable certain actions when necessaryrr
@@ -54,7 +51,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         end
         
         -- Disable primary attack (LMB) for perilous weapons
-        if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold") then
+        if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release") then
             return false
         end
 
@@ -67,16 +64,17 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     -- Warp Unbound LMB disabling functionality
     if mod:get("warp_unbound_bug_fix_enable") then
         if action_name == "combat_ability_hold" then
-            ability_active = result
+            ability_triggered = result
         end
 
-        if action_name == "combat_ability_release" and result == true and ability_active then
-            warp_unbound_peril_triggered = false
+        if action_name == "combat_ability_release" and result == true and ability_triggered then
+            warp_unbound_bugfix_interval1_triggered = false
+            warp_unbound_bugfix_interval2_triggered = false
         end
 
         if warp_unbound_bugfix_active then
             -- Disable primary attack (LMB) for perilous weapons
-            if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold") then
+            if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release") then
                 return false
             end
 
@@ -140,7 +138,7 @@ end
 local function prevent_psyker_explosion(player_unit, peril_fraction)
     if mod:get("prevent_psyker_explosion_enable") and is_perilous_weapon then
         -- Disable actions if peril is at or above the threshold and Warp Unbound is not active
-        if peril_fraction >= peril_threshold and not warp_unbound_active and not ability_active then
+        if peril_fraction >= peril_threshold and not warp_unbound_active and not ability_triggered then
             prevent_explosion_active = true
         else
             prevent_explosion_active = false
@@ -159,14 +157,15 @@ local function warp_unbound_bugfix(player_unit, dt)
                 local template = buff:template()
                 if template.name == "psyker_overcharge_stance_infinite_casting" then
                     local remaining = buff:duration() * (buff:duration_progress() or 1)
-                    if remaining >= 10 and remaining <= (11.5 - disable_start_delay) and not warp_unbound_peril_triggered then
+                    if remaining >= 10 and remaining <= (11.5 - interval1_start_delay) and not warp_unbound_bugfix_interval1_triggered then
                         warp_unbound_bugfix_active = true
-                        warp_unbound_disable_timer = disable_duration
-                        warp_unbound_peril_triggered = true
+                        warp_unbound_disable_timer = interval1_duration
+                        warp_unbound_bugfix_interval1_triggered = true
                     end
-                    if remaining <= 0.3 and warp_unbound_peril_triggered then
+                    if remaining <= 0.3 and not warp_unbound_bugfix_interval2_triggered then
                         warp_unbound_bugfix_active = true
                         warp_unbound_disable_timer = 0.4
+                        warp_unbound_bugfix_interval2_triggered = true
                     end
                 end
             end
@@ -200,7 +199,6 @@ function mod.update(dt)
     -- Get the local player
     local player = Managers.player:local_player(1)
     if not player or not player.player_unit or not Unit.alive(player.player_unit) then
-        -- Reset variables if player is not ready
         warp_unbound_bugfix_active = false
         prevent_explosion_active = false
         warp_unbound_active = false
