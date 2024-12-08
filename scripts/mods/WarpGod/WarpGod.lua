@@ -78,8 +78,6 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         if action_name == "combat_ability_release" and result == true and ability_triggered then
             warp_unbound_bugfix_interval1_triggered = false
             warp_unbound_bugfix_interval2_triggered = false
-            -- Reset ability_triggered here if desired, depending on logic.
-            mod:echo("ability activated")
             ability_triggered = false
             attempted_ability_usage = false
         end
