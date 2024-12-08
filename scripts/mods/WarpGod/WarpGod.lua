@@ -18,7 +18,7 @@ local prevent_explosion_active = false
 -- Variables for Warp Unbound LMB disabling functionality
 local warp_unbound_bugfix_active = false
 local warp_unbound_disable_timer = 0
-local warp_unbound_peril_triggered = falser
+local warp_unbound_peril_triggered = false
 local ability_active = false -- Tracks if the ability key has been pressed
 local warp_unbound_active = false -- Tracks if Warp Unbound is currently active
 
