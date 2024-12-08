@@ -40,13 +40,13 @@ local loc = {
         en = "Warp Unbound last 11.5s, sometime around 10.5s there is a probability to explode with Smite, Surge & Trauma staffs. Bugfix disables attacks that generate peril during a interval.",
     },
     interval1_duration = {
-        en = "Disable Duration",
+        en = "Interval-duration",
     },
     interval1_duration_description = {
         en = "For the bugfix interval. Default is 0.7",
     },
     interval1_start_delay = {
-        en = "Start-delay",
+        en = "Interval start-delay",
     },
     interval1_start_delay_description = {
         en = "For the Bugfix interval. Default is 0.9",
