@@ -1,7 +1,7 @@
 --[[
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ Mod Name: Warp God                                                                                                               │
-│ Mod Description: Warp Unbound talent hotfix, Peril of the Warp Explosion Prevention                                              │
+│ Mod Description: Warp Unbound bug hotfix, Peril of the Warp Explosion Prevention                                                 │
 │ Mod Author: Kevinna                                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 --]]
@@ -18,7 +18,11 @@ local prevent_explosion_active = false
 -- Variables for Warp Unbound LMB disabling functionality
 local warp_unbound_bugfix_active = false
 local warp_unbound_disable_timer = 0
-local ability_triggered = false -- Tracks if the ability key has been pressed
+
+-- Tracks if the player has attempted to use the ability
+local attempted_ability_usage = false
+-- Tracks if the ability was actually triggered (not just attempted)
+local ability_triggered = false
 local warp_unbound_active = false -- Tracks if Warp Unbound is currently active
 local warp_unbound_bugfix_interval1_triggered = false --Tracks if the first disabling-interval when warp unbound is active is triggered
 local warp_unbound_bugfix_interval2_triggered = false --Tracks if the second disabling-interval when warp unbound is active is triggered
@@ -34,12 +38,12 @@ local peril_threshold = mod:get("peril_threshold")
 
 -- Update settings when they change
 mod.on_setting_changed = function(setting_id)
-        interval1_duration = mod:get("interval1_duration")
-        interval1_start_delay = mod:get("interval1_start_delay")
-        peril_threshold = mod:get("peril_threshold")
+    interval1_duration = mod:get("interval1_duration")
+    interval1_start_delay = mod:get("interval1_start_delay")
+    peril_threshold = mod:get("peril_threshold")
 end
 
--- Hook into InputService to disable certain actions when necessaryrr
+-- Hook into InputService to disable certain actions when necessary
 mod:hook("InputService", "_get", function(func, self, action_name)
     local result = func(self, action_name)
 
@@ -49,7 +53,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         if mod:get("macro_anti_detection_enable") and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
             return false
         end
-        
+
         -- Disable primary attack (LMB) for perilous weapons
         if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release") then
             return false
@@ -64,12 +68,20 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     -- Warp Unbound LMB disabling functionality
     if mod:get("warp_unbound_bug_fix_enable") then
         if action_name == "combat_ability_hold" then
-            ability_triggered = result
+            -- Player attempts to use the ability. Mark the attempt but do not set ability_triggered yet.
+            if result then
+                attempted_ability_usage = true
+            end
         end
 
+        -- Only reset intervals if the ability was actually triggered
         if action_name == "combat_ability_release" and result == true and ability_triggered then
             warp_unbound_bugfix_interval1_triggered = false
             warp_unbound_bugfix_interval2_triggered = false
+            -- Reset ability_triggered here if desired, depending on logic.
+            mod:echo("ability activated")
+            ability_triggered = false
+            attempted_ability_usage = false
         end
 
         if warp_unbound_bugfix_active then
@@ -91,6 +103,15 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     end
 
     return result
+end)
+
+-- Hook into PlayerUnitAbilityExtension to confirm ability is actually used
+mod:hook_safe("PlayerUnitAbilityExtension", "use_ability_charge", function(self, ability_type, optional_num_charges)
+    if ability_type == "combat_ability" and attempted_ability_usage then
+        -- The game has confirmed the ability is actually used
+        ability_triggered = true
+        attempted_ability_usage = false
+    end
 end)
 
 -- Function to update weapon status
@@ -137,7 +158,7 @@ end
 -- Function for Prevent Psyker Explosion functionality
 local function prevent_psyker_explosion(player_unit, peril_fraction)
     if mod:get("prevent_psyker_explosion_enable") and is_perilous_weapon then
-        -- Disable actions if peril is at or above the threshold and Warp Unbound is not active
+        -- Disable actions if peril is at or above the threshold and Warp Unbound is not active and ability not truly triggered
         if peril_fraction >= peril_threshold and not warp_unbound_active and not ability_triggered then
             prevent_explosion_active = true
         else
@@ -252,4 +273,3 @@ function mod.update(dt)
 end
 
 return mod
-
