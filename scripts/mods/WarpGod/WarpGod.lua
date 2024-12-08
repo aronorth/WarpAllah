@@ -9,7 +9,7 @@
 local mod = get_mod("WarpGod")
 
 -- Launch bug hotfix: Reintroduce the initialization delay
-local initialization_delay = 2 -- Wait for 10 seconds before attempting to access player data
+local initialization_delay = 10 -- Wait for 10 seconds before attempting to access player data
 local initialization_elapsed_time = 0
 
 -- Variables for Prevent Psyker Explosion functionality
