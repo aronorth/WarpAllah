@@ -9,8 +9,8 @@
 local mod = get_mod("WarpGod")
 
 -- Launch bug hotfix: Reintroduce the initialization delay
-local initialization_delay = 10 -- Wait for 10 seconds before attempting to access player data
-local elapsed_time = 0
+local initialization_delay = 2 -- Wait for 10 seconds before attempting to access player data
+local initialization_elapsed_time = 0
 
 -- Variables for Prevent Psyker Explosion functionality
 local prevent_explosion_active = false
@@ -18,7 +18,7 @@ local prevent_explosion_active = false
 -- Variables for Warp Unbound LMB disabling functionality
 local warp_unbound_bugfix_active = false
 local warp_unbound_disable_timer = 0
-local warp_unbound_peril_triggered = false
+local warp_unbound_peril_triggered = falser
 local ability_active = false -- Tracks if the ability key has been pressed
 local warp_unbound_active = false -- Tracks if Warp Unbound is currently active
 
@@ -54,7 +54,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         end
         
         -- Disable primary attack (LMB) for perilous weapons
-        if action_name == "action_one_pressed" or action_name == "action_one_hold" then
+        if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold") then
             return false
         end
 
@@ -75,8 +75,13 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         end
 
         if warp_unbound_bugfix_active then
-            -- Disable primary attack (LMB)
-            if action_name == "action_one_pressed" or action_name == "action_one_hold" then
+            -- Disable primary attack (LMB) for perilous weapons
+            if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold") then
+                return false
+            end
+
+            -- Disable special attack keys for force swords
+            if is_forcesword and (action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra_release") then
                 return false
             end
 
@@ -94,7 +99,6 @@ end)
 local function update_weapon_status(player_unit)
     is_perilous_weapon = false
     is_forcesword = false
-
     local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
     if weapon_extension then
         local weapon_template = weapon_extension:weapon_template()
@@ -108,14 +112,14 @@ local function update_weapon_status(player_unit)
                 "forcesword_p1_m3",
                 "forcesword_p1_m2",
                 "forcesword_p1_m1",
+                "forcesword_2h_p1_m1",
+                "forcesword_2h_p1_m2",
             }
-
             for _, name in ipairs(perilous_weapons) do
                 if string.find(weapon_name, name) then
                     is_perilous_weapon = true
                 end
             end
-
             local forceswords = {
                 "forcesword_p1_m1",
                 "forcesword_p1_m2",
@@ -123,7 +127,6 @@ local function update_weapon_status(player_unit)
                 "forcesword_2h_p1_m1",
                 "forcesword_2h_p1_m2",
             }
-
             for _, name in ipairs(forceswords) do
                 if string.find(weapon_name, name) then
                     is_forcesword = true
@@ -148,7 +151,7 @@ local function prevent_psyker_explosion(player_unit, peril_fraction)
 end
 
 -- Function for Warp Unbound LMB disabling functionality
-local function warp_unbound_lmb_disabling(player_unit, dt)
+local function warp_unbound_bugfix(player_unit, dt)
     if mod:get("warp_unbound_bug_fix_enable") and is_perilous_weapon then
         local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
         if buff_extension then
@@ -184,8 +187,8 @@ end
 -- Update function to monitor peril and manage disabling of actions
 function mod.update(dt)
     -- Wait until the initialization delay has passed
-    elapsed_time = elapsed_time + dt
-    if elapsed_time < initialization_delay then
+    initialization_elapsed_time = initialization_elapsed_time + dt
+    if initialization_elapsed_time < initialization_delay then
         return
     end
 
@@ -247,7 +250,7 @@ function mod.update(dt)
 
     -- Execute functionalities
     prevent_psyker_explosion(player_unit, peril_fraction)
-    warp_unbound_lmb_disabling(player_unit, dt)
+    warp_unbound_bugfix(player_unit, dt)
 end
 
 return mod
