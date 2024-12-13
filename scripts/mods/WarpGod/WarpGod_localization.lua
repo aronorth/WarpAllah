@@ -51,6 +51,36 @@ local loc = {
     interval1_start_delay_description = {
         en = "For the Bugfix interval. Default is 0.9",
     },
+    interval2_duration = {
+        en = "Interval-duration",
+    },
+    interval2_duration_description = {
+        en = "For the end of Warp Unbound buff. Default is 0.5",
+    },
+    --[[
+    --Additional Settings
+    additional_settings = {
+        en = "Additional Settings",
+    },
+    auto_quell = {
+        en = "Auto Quell",
+    },
+    auto_quell_description = {
+        en = "Auto Quell when exceeding threshold",
+    },
+    auto_quell_threshold = {
+        en = "Auto Quell Threshold",
+    },
+    auto_quell_threshold_description = {
+        en = "Auto Quell until below auto quell-threshold. Should be less than peril-threshold",
+    },
+    auto_warp_unbound = {
+        en = "Auto Warp Unbound",
+    },
+    auto_warp_unbound_description = {
+        en = "Automatically activate Warp Unbound when timer ends, if at 100%% peril",
+    },
+    --]]
 }
 
 return loc
