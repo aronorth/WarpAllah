@@ -69,8 +69,51 @@ return {
                         text            = mod:localize("interval1_start_delay"),
                         description     = mod:localize("interval1_start_delay_description"),
                     },
+                    {
+                        setting_id      = "interval2_duration",
+                        type            = "numeric",
+                        default_value   = 0.5,
+                        range           = { 0, 0.5 },
+                        decimals_number = 1,
+                        step_size_value = 0.1,
+                        text            = mod:localize("interval2_duration"),
+                        description     = mod:localize("interval2_duration_description"),
+                    },
                 },
             },
+            --[[
+            -- Additional Settings
+            {
+                setting_id = "additional_settings",
+                type = "group",
+                sub_widgets = {
+                    {
+                        setting_id    = "auto_quell",
+                        type          = "checkbox",
+                        default_value = true,
+                        text          = mod:localize("auto_quell"),
+                        description   = mod:localize("auto_quell_description"),
+                    },
+                    {
+                        setting_id      = "auto_quell_threshold",
+                        type            = "numeric",
+                        default_value   = 0.5,
+                        range           = { 0, 1 },
+                        decimals_number = 1,
+                        step_size_value = 0.1,
+                        text            = mod:localize("auto_quell_threshold"),
+                        description     = mod:localize("auto_quell_threshold_description"),
+                    },
+                    {
+                        setting_id    = "auto_warp_unbound",
+                        type          = "checkbox",
+                        default_value = true,
+                        text          = mod:localize("auto_warp_unbound"),
+                        description   = mod:localize("auto_warp_unbound_description"),
+                    },
+                },
+            },
+            --]]
         },
     },
 }
