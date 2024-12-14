@@ -2,14 +2,13 @@
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ Mod Name: Warp God                                                                                                               │
 │ Mod Description: Warp Unbound bug hotfix, Peril of the Warp Explosion Prevention                                                 │
-│ Mod Author: Kevinna                                                                                                              │
+│ Mod Author: Kevinna (collaboration with CrazyMonkey, author of PsykerAutoQuell)                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 --]]
 
 local mod = get_mod("WarpGod")
 
-local initialization_delay = 10 -- Wait for 10 seconds before attempting to access player data
-local initialization_elapsed_time = 0
+local enable_bugfix = false --will enable bugfix after entering hub
 
 local attempted_ability_usage = false -- Tracks if the player has attempted to use the ability
 local ability_triggered = false -- Tracks if the ability was actually triggered
@@ -30,6 +29,7 @@ local peril_threshold = mod:get("peril_threshold")
 local interval1_duration = mod:get("interval1_duration")
 local interval1_start_delay = mod:get("interval1_start_delay")
 local interval2_duration = mod:get("interval2_duration")
+local interval2_end_delay = mod:get("interval2_end_delay")
 
 -- Update settings when they change
 mod.on_setting_changed = function(setting_id)
@@ -37,14 +37,16 @@ mod.on_setting_changed = function(setting_id)
     interval1_duration = mod:get("interval1_duration")
     interval1_start_delay = mod:get("interval1_start_delay")
     interval2_duration = mod:get("interval2_duration")
+    interval2_end_delay = mod:get("interval2_end_delay")
 end
 
 -- Function to get the local player
-local function _get_player()
-    if not Managers or not Managers.player then return nil end
-    local player = Managers.player:local_player(1)
-    if not player or not player.peer_id then return nil end
-    return player
+local function get_player()
+    if Managers and Managers.state and Managers.state.game_mode then
+        local player_manager = Managers.player
+        local player = player_manager and player_manager:local_player(1)
+        return player
+    else return false end
 end
 
 -- Function to update weapon status
@@ -52,10 +54,10 @@ local function update_weapon_status()
     is_perilous_weapon = false
     is_forcesword = false
 
-    local player = _get_player()
-    if not player then return false end
+    local player = get_player()
+    if not player then return end
     local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then return false end
+    if not player_unit or not Unit.alive(player_unit) then return end
 
     local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
     if weapon_extension then
@@ -96,7 +98,7 @@ end
 
 -- Function to get the current peril level
 local function get_peril_level()
-    local player = _get_player()
+    local player = get_player()
     if not player then return 0 end
     local player_unit = player.player_unit
     if not player_unit or not Unit.alive(player_unit) then return 0 end
@@ -110,7 +112,7 @@ end
 
 -- Function for Warp Unbound LMB disabling functionality
 local function warp_unbound_bugfix(dt)
-    local player = _get_player()
+    local player = get_player()
     if not player then return end
     local player_unit = player.player_unit
     if not player_unit or not Unit.alive(player_unit) then return end
@@ -129,7 +131,7 @@ local function warp_unbound_bugfix(dt)
                         warp_unbound_bugfix_interval1_triggered = true
                     end
 
-                    if remaining_time <= interval2_duration and not warp_unbound_bugfix_interval2_triggered then
+                    if (remaining_time + interval2_end_delay) <= interval2_duration and not warp_unbound_bugfix_interval2_triggered then
                         warp_unbound_bugfix_active = true
                         warp_unbound_disable_timer = interval2_duration
                         warp_unbound_bugfix_interval2_triggered = true
@@ -152,7 +154,7 @@ local function warp_unbound_bugfix(dt)
 end
 
 local function is_warp_unbound_buff_active()
-    local player = _get_player()
+    local player = get_player()
     if not player then return false end
     local player_unit = player.player_unit
     if not player_unit or not Unit.alive(player_unit) then return false end
@@ -200,7 +202,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     update_weapon_status()
 
     -- Prevent Psyker Explosion functionality
-    if mod:get("prevent_psyker_explosion_enable") and (get_peril_level() >= peril_threshold) and not is_warp_unbound_buff_active() then
+    if mod:get("prevent_psyker_explosion_enable") and (get_peril_level() >= peril_threshold) and not is_warp_unbound_buff_active() and is_perilous_weapon then
         -- Disable quell for perilous weapons
         if mod:get("macro_anti_detection_enable") and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
             return false
@@ -216,7 +218,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     end
 
     -- Warp Unbound LMB disabling functionality
-    if mod:get("warp_unbound_bug_fix_enable") then
+    if mod:get("warp_unbound_bug_fix_enable") and is_perilous_weapon then
         if action_name == "combat_ability_hold" then
             -- Player attempts to use the ability. Mark the attempt but do not set ability_triggered yet.
             if func(self, action_name) then
@@ -251,10 +253,6 @@ end)
 
 -- Update function to monitor peril and manage disabling of actions
 function mod.update(dt)
-    initialization_elapsed_time = initialization_elapsed_time + dt
-    if initialization_elapsed_time < initialization_delay then
-        return
-    end
     warp_unbound_bugfix(dt)
 end
 
