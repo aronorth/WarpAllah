@@ -79,6 +79,16 @@ return {
                         text            = mod:localize("interval2_duration"),
                         description     = mod:localize("interval2_duration_description"),
                     },
+                    {
+                        setting_id      = "interval2_end_delay",
+                        type            = "numeric",
+                        default_value   = 0.2,
+                        range           = { 0, 0.5 },
+                        decimals_number = 1,
+                        step_size_value = 0.1,
+                        text            = mod:localize("interval2_end_delay"),
+                        description     = mod:localize("interval2_end_delay_description"),
+                    },
                 },
             },
             --[[
