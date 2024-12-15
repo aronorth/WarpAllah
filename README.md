@@ -21,10 +21,8 @@ Tailor-made mod for personal use to make my OP build viable.
   - Possible to still explode with Assail, if spam-throwing knives while just below 100% peril.
 
 - **Warp Unbound Bug Fix**  
-  - Default settings values:  
-    - `Disable_Duration = 0.7`  
-    - `Disable_Start_Delay = 0.9`  
-  - There's still a small probability of the bug occurring.  
+  - Default settings values is what worked for me
+  - There's can still still persist a small probability of the bug occurring.  
   - You can tweak the settings to potentially find better values.
 ## **Build I made this mod for**
 I was exploring how to make the most broken build while skirting around the ToS with mods and macros, this is what I came up with.
