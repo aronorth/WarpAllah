@@ -12,6 +12,7 @@ local enable_bugfix = false --will enable bugfix after entering hub
 
 local attempted_ability_usage = false -- Tracks if the player has attempted to use the ability
 local ability_triggered = false -- Tracks if the ability was actually triggered
+local waiting_on_buff = false -- Tracks if we have triggered ability but warp unbound is not yet active
 
 local warp_unbound_bugfix_interval1_triggered = false --Tracks if the first disabling-interval when warp unbound is active is triggered
 local warp_unbound_bugfix_interval2_triggered = false --Tracks if the second disabling-interval when warp unbound is active is triggered
@@ -119,13 +120,13 @@ local function warp_unbound_bugfix(dt)
     
     if mod:get("warp_unbound_bug_fix_enable") and is_perilous_weapon then
         local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
+        local remaining_time = 0
         if buff_extension then
             for _, buff in pairs(buff_extension:buffs()) do
                 local template = buff:template()
                 if template.name == "psyker_overcharge_stance_infinite_casting" then
-                    local remaining_time = buff:duration() * (buff:duration_progress() or 1)
-
-                    if remaining_time <= (11.5 - interval1_start_delay) and not warp_unbound_bugfix_interval1_triggered then
+                    remaining_time = buff:duration() * (buff:duration_progress() or 1)
+                    if remaining_time < (11.5 - interval1_start_delay) and remaining_time >= 10 and not warp_unbound_bugfix_interval1_triggered then
                         warp_unbound_bugfix_active = true
                         warp_unbound_disable_timer = interval1_duration
                         warp_unbound_bugfix_interval1_triggered = true
@@ -144,7 +145,6 @@ local function warp_unbound_bugfix(dt)
             warp_unbound_disable_timer = warp_unbound_disable_timer - dt
             if warp_unbound_disable_timer <= 0 then
                 warp_unbound_bugfix_active = false
-                warp_unbound_disable_timer = 0
             end
         end
 
@@ -177,6 +177,7 @@ mod:hook_safe("PlayerUnitAbilityExtension", "use_ability_charge", function(self,
     if ability_type == "combat_ability" and attempted_ability_usage then
         ability_triggered = true
         attempted_ability_usage = false
+        waiting_on_buff = true
     end
 end)
 
@@ -199,16 +200,21 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     then
         return func(self, action_name)
     end
+    
     update_weapon_status()
 
+    if waiting_on_buff and is_warp_unbound_buff_active() then
+        waiting_on_buff = false
+    end
+
     -- Prevent Psyker Explosion functionality
-    if mod:get("prevent_psyker_explosion_enable") and (get_peril_level() >= peril_threshold) and not is_warp_unbound_buff_active() and is_perilous_weapon then
+    if mod:get("prevent_psyker_explosion_enable") and (get_peril_level() >= peril_threshold) and not waiting_on_buff and not is_warp_unbound_buff_active() and is_perilous_weapon then
         -- Disable quell for perilous weapons
         if mod:get("macro_anti_detection_enable") and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
             return false
         end
         -- Disable primary attack (LMB) for perilous weapons
-        if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release") or (action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
+        if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" or action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
             return false
         end
         -- Disable special attack keys for force swords
@@ -218,7 +224,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     end
 
     -- Warp Unbound LMB disabling functionality
-    if mod:get("warp_unbound_bug_fix_enable") and is_perilous_weapon then
+    if mod:get("warp_unbound_bug_fix_enable") then
         if action_name == "combat_ability_hold" then
             -- Player attempts to use the ability. Mark the attempt but do not set ability_triggered yet.
             if func(self, action_name) then
@@ -232,9 +238,10 @@ mod:hook("InputService", "_get", function(func, self, action_name)
             ability_triggered = false
             attempted_ability_usage = false
         end
-        if warp_unbound_bugfix_active and is_warp_unbound_buff_active() then
+
+        if warp_unbound_bugfix_active and is_warp_unbound_buff_active() and is_perilous_weapon then
             -- Disable primary attack (LMB) for perilous weapons
-            if not is_forcesword and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release") or (action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
+            if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" or action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
                 return false
             end
             -- Disable special attack keys for force swords
