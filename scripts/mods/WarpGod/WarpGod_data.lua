@@ -52,7 +52,7 @@ return {
                     {
                         setting_id      = "interval1_duration",
                         type            = "numeric",
-                        default_value   = 0.7,
+                        default_value   = 0.8,
                         range           = { 0, 1.5 },
                         decimals_number = 1,
                         step_size_value = 0.1,
@@ -72,8 +72,8 @@ return {
                     {
                         setting_id      = "interval2_duration",
                         type            = "numeric",
-                        default_value   = 0.5,
-                        range           = { 0, 0.5 },
+                        default_value   = 0.6,
+                        range           = { 0, 1 },
                         decimals_number = 1,
                         step_size_value = 0.1,
                         text            = mod:localize("interval2_duration"),
@@ -82,7 +82,7 @@ return {
                     {
                         setting_id      = "interval2_end_delay",
                         type            = "numeric",
-                        default_value   = 0.2,
+                        default_value   = 0.3,
                         range           = { 0, 0.5 },
                         decimals_number = 1,
                         step_size_value = 0.1,
