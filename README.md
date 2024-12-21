@@ -19,6 +19,7 @@ Tailor-made mod for personal use to make my OP build viable.
 ## **Disclaimer**
 - **Bugs**  
   - Possible to still explode with Assail, if spam-throwing knives while just below 100% peril.
+  - Transition between preventing & allowing inputs cancels holding-down inputs (so you gotto repress the button)
 
 - **Warp Unbound Bug Fix**  
   - Default settings values is what worked for me
