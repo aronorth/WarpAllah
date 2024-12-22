@@ -1,4 +1,4 @@
-local mod = get_mod("WarpGod")
+local mod = get_mod("WarpAllah")
 
 return {
     name = mod:localize("mod_name"),
@@ -6,37 +6,6 @@ return {
     is_togglable = true,
     options = {
         widgets = {
-            -- Prevent Psyker Explosion Group
-            {
-                setting_id = "prevent_psyker_explosion",
-                type = "group",
-                sub_widgets = {
-                    {
-                        setting_id    = "prevent_psyker_explosion_enable",
-                        type          = "checkbox",
-                        default_value = true,
-                        text          = mod:localize("prevent_psyker_explosion_enable"),
-                        description   = mod:localize("prevent_psyker_explosion_enable_description"),
-                    },
-                    {
-                        setting_id    = "macro_anti_detection_enable",
-                        type          = "checkbox",
-                        default_value = false,
-                        text          = mod:localize("macro_anti_detection_enable"),
-                        description   = mod:localize("macro_anti_detection_enable_description"),
-                    },
-                    {
-                        setting_id      = "peril_threshold",
-                        type            = "numeric",
-                        range           = { 0.5, 1.0 }, -- Allowing thresholds between 50% and 100%
-                        default_value   = 1.0,          -- Default to 100%
-                        decimals_number = 2,
-                        step_size_value = 0.01,
-                        text            = mod:localize("peril_threshold"),
-                        description     = mod:localize("peril_threshold_description"),
-                    },
-                },
-            },
             -- Warp Unbound Bug Fix Group
             {
                 setting_id = "warp_unbound_bug_fix",
@@ -91,39 +60,6 @@ return {
                     },
                 },
             },
-            --[[
-            -- Additional Settings
-            {
-                setting_id = "additional_settings",
-                type = "group",
-                sub_widgets = {
-                    {
-                        setting_id    = "auto_quell",
-                        type          = "checkbox",
-                        default_value = true,
-                        text          = mod:localize("auto_quell"),
-                        description   = mod:localize("auto_quell_description"),
-                    },
-                    {
-                        setting_id      = "auto_quell_threshold",
-                        type            = "numeric",
-                        default_value   = 0.5,
-                        range           = { 0, 1 },
-                        decimals_number = 1,
-                        step_size_value = 0.1,
-                        text            = mod:localize("auto_quell_threshold"),
-                        description     = mod:localize("auto_quell_threshold_description"),
-                    },
-                    {
-                        setting_id    = "auto_warp_unbound",
-                        type          = "checkbox",
-                        default_value = true,
-                        text          = mod:localize("auto_warp_unbound"),
-                        description   = mod:localize("auto_warp_unbound_description"),
-                    },
-                },
-            },
-            --]]
         },
     },
 }

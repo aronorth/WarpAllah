@@ -1,13 +1,13 @@
 --[[
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Mod Name: Warp God                                                                                                               │
+│ Mod Name: Warp Allah (orginially Warp God)                                                                                       │
 │ Mod Description: Warp Unbound bug hotfix, Peril of the Warp Explosion Prevention                                                 │
 │ Mod Author: Kevinna (collaboration with CrazyMonkey, author of PsykerAutoQuell)                                                  │
 │ Mod forked and edited by Aronorth                                                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 --]]
 
-local mod = get_mod("WarpGod")
+local mod = get_mod("WarpAllah")
 
 local enable_bugfix = false --will enable bugfix after entering hub
 
@@ -206,22 +206,6 @@ mod:hook("InputService", "_get", function(func, self, action_name)
 
     if waiting_on_buff and is_warp_unbound_buff_active() then
         waiting_on_buff = false
-    end
-
-    -- Prevent Psyker Explosion functionality
-    if mod:get("prevent_psyker_explosion_enable") and (get_peril_level() >= peril_threshold) and not waiting_on_buff and not is_warp_unbound_buff_active() and is_perilous_weapon then
-        -- Disable quell for perilous weapons
-        if mod:get("macro_anti_detection_enable") and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
-            return false
-        end
-        -- Disable primary attack (LMB) for perilous weapons
-        if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" or action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
-            return false
-        end
-        -- Disable special attack keys for force swords
-        if is_forcesword and (action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra_release") then
-            return false
-        end
     end
 
     -- Warp Unbound LMB disabling functionality
