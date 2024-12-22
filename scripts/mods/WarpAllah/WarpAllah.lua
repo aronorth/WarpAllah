@@ -3,6 +3,7 @@
 │ Mod Name: Warp God                                                                                                               │
 │ Mod Description: Warp Unbound bug hotfix, Peril of the Warp Explosion Prevention                                                 │
 │ Mod Author: Kevinna (collaboration with CrazyMonkey, author of PsykerAutoQuell)                                                  │
+│ Mod forked and edited by Aronorth                                                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 --]]
 
