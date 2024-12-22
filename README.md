@@ -21,3 +21,5 @@ https://github.com/Kevinna01/WarpGod
   - Default settings values is what worked for me
   - There's can still still persist a small probability of the bug occurring.  
   - You can tweak the settings to potentially find better values.
+
+## THIS IS PROVIDED WITH NO WARRANTY AND NO LIABILITY
