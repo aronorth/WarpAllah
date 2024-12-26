@@ -68,6 +68,12 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     -- Let the original method run first, so we know the default result
     local result = func(self, action_name)
 
+    -- If the game’s result is already false (meaning the action isn’t pressed/held),
+    -- we can bail out early without further checks or printing.
+    if not result then
+        return false
+    end
+
     -- Decide which actions we want to potentially block
     -- (e.g. main fire: "action_one_*"; alt fire: "action_two_*"; etc.)
     if action_name ~= "action_one_pressed"
