@@ -95,6 +95,10 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     -- Get warp charge state
     local warp_charge_component = get_warp_charge_component(player_unit)
     if not warp_charge_component then
+        mod:echo(string.format(
+            "[Debug] Action=%s => No warp_charge_component found!",
+            action_name
+        ))
         return result
     end
 
@@ -109,6 +113,17 @@ mod:hook("InputService", "_get", function(func, self, action_name)
 
     -- Check if the protective buff is active
     local protected_by_buff = has_protection_buff(player_unit)
+
+    -- Debug info: Print out the relevant state every time we press/hold/release
+mod:echo(string.format(
+    "[Debug] Action=%s => Peril=%.2f, State=%s, InPreExplode=%s, PerilousWeapon=%s, Protected=%s",
+    action_name,
+    current_percentage,
+    state,
+    tostring(is_pre_explosion),
+    tostring(perilous_weapon),
+    tostring(protected_by_buff)
+    ))
 
     -- If all conditions are met, block input
     if is_pre_explosion and perilous_weapon and not protected_by_buff then
