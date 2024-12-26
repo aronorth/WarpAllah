@@ -1,0 +1,2 @@
+Player keybind api:
+    /home/moe/github/Darktide-Source-Code/scripts/settings/options

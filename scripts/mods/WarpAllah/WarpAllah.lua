@@ -1,251 +1,143 @@
 --[[
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Mod Name: Warp Allah (orginially Warp God)                                                                                       │
-│ Mod Description: Warp Unbound bug hotfix, Peril of the Warp Explosion Prevention                                                 │
-│ Mod Author: Kevinna (collaboration with CrazyMonkey, author of PsykerAutoQuell)                                                  │
-│ Mod forked and edited by Aronorth                                                                                                │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Mod Name: WarpAllah                                                       │
+│ Description: A better approach to fixing the warp unbound bug.            │
+│ Author: Aronorth                                                          │
+└───────────────────────────────────────────────────────────────────────────┘
 --]]
 
-local mod = get_mod("WarpAllah")
+local mod = get_mod("WarpAllah") -- Make sure this matches the folder name
 
-local enable_bugfix = false --will enable bugfix after entering hub
+------------------------------------------------------------------------------
+-- 1. Utility / Helper Functions
+------------------------------------------------------------------------------
 
-local attempted_ability_usage = false -- Tracks if the player has attempted to use the ability
-local ability_triggered = false -- Tracks if the ability was actually triggered
-local waiting_on_buff = false -- Tracks if we have triggered ability but warp unbound is not yet active
-
-local warp_unbound_bugfix_interval1_triggered = false --Tracks if the first disabling-interval when warp unbound is active is triggered
-local warp_unbound_bugfix_interval2_triggered = false --Tracks if the second disabling-interval when warp unbound is active is triggered
-
--- Variables for Warp Unbound LMB disabling functionality
-local warp_unbound_bugfix_active = false
-local warp_unbound_disable_timer = 0
-
--- Variables for weapon identification
-local is_perilous_weapon = false
-local is_forcesword = false
-
--- Settings with default values
-local peril_threshold = mod:get("peril_threshold")
-local interval1_duration = mod:get("interval1_duration")
-local interval1_start_delay = mod:get("interval1_start_delay")
-local interval2_duration = mod:get("interval2_duration")
-local interval2_end_delay = mod:get("interval2_end_delay")
-
--- Update settings when they change
-mod.on_setting_changed = function(setting_id)
-    peril_threshold = mod:get("peril_threshold")
-    interval1_duration = mod:get("interval1_duration")
-    interval1_start_delay = mod:get("interval1_start_delay")
-    interval2_duration = mod:get("interval2_duration")
-    interval2_end_delay = mod:get("interval2_end_delay")
-end
-
--- Function to get the local player
-local function get_player()
+-- Placeholder: Adjust as needed
+-- "Managers" is assumed to be globally available via Darktide’s environment.
+local function get_local_player()
+    -- Return the local human player (slot #1)
     if Managers and Managers.state and Managers.state.game_mode then
         local player_manager = Managers.player
-        local player = player_manager and player_manager:local_player(1)
-        return player
-    else return false end
-end
-
--- Function to update weapon status
-local function update_weapon_status()
-    is_perilous_weapon = false
-    is_forcesword = false
-
-    local player = get_player()
-    if not player then return end
-    local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then return end
-
-    local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
-    if weapon_extension then
-        local weapon_template = weapon_extension:weapon_template()
-        if weapon_template and weapon_template.name then
-            local weapon_name = weapon_template.name
-            local perilous_weapons = {
-                "forcestaff",
-                "psyker_throwing_knives",
-                "psyker_smite",
-                "psyker_chain_lightning",
-                "forcesword_p1_m3",
-                "forcesword_p1_m2",
-                "forcesword_p1_m1",
-                "forcesword_2h_p1_m1",
-                "forcesword_2h_p1_m2",
-            }
-            for _, name in ipairs(perilous_weapons) do
-                if string.find(weapon_name, name) then
-                    is_perilous_weapon = true
-                end
-            end
-            local forceswords = {
-                "forcesword_p1_m1",
-                "forcesword_p1_m2",
-                "forcesword_p1_m3",
-                "forcesword_2h_p1_m1",
-                "forcesword_2h_p1_m2",
-            }
-            for _, name in ipairs(forceswords) do
-                if string.find(weapon_name, name) then
-                    is_forcesword = true
-                end
-            end
-        end
+        return player_manager and player_manager:local_player(1)
     end
+
+    return nil
 end
 
--- Function to get the current peril level
-local function get_peril_level()
-    local player = get_player()
-    if not player then return 0 end
-    local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then return 0 end
-
+local function get_warp_charge_component(player_unit)
+    -- Safely retrieve the warp_charge component
     local success, unit_data_extension = pcall(ScriptUnit.extension, player_unit, "unit_data_system")
-    if not success or not unit_data_extension then return 0 end
-    local warp_charge_component = unit_data_extension:read_component("warp_charge")
-    if not warp_charge_component then return 0 end
-    return warp_charge_component.current_percentage or 0
-end
-
--- Function for Warp Unbound LMB disabling functionality
-local function warp_unbound_bugfix(dt)
-    local player = get_player()
-    if not player then return end
-    local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then return end
-    
-    if mod:get("warp_unbound_bug_fix_enable") and is_perilous_weapon then
-        local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
-        local remaining_time = 0
-        if buff_extension then
-            for _, buff in pairs(buff_extension:buffs()) do
-                local template = buff:template()
-                if template.name == "psyker_overcharge_stance_infinite_casting" then
-                    remaining_time = buff:duration() * (buff:duration_progress() or 1)
-                    if remaining_time < (11.5 - interval1_start_delay) and remaining_time >= 10 and not warp_unbound_bugfix_interval1_triggered then
-                        warp_unbound_bugfix_active = true
-                        warp_unbound_disable_timer = interval1_duration
-                        warp_unbound_bugfix_interval1_triggered = true
-                    end
-
-                    if (remaining_time + interval2_end_delay) <= interval2_duration and not warp_unbound_bugfix_interval2_triggered then
-                        warp_unbound_bugfix_active = true
-                        warp_unbound_disable_timer = interval2_duration
-                        warp_unbound_bugfix_interval2_triggered = true
-                    end
-                end
-            end
-        end
-
-        if warp_unbound_bugfix_active then
-            warp_unbound_disable_timer = warp_unbound_disable_timer - dt
-            if warp_unbound_disable_timer <= 0 then
-                warp_unbound_bugfix_active = false
-            end
-        end
-
-    else
-        warp_unbound_bugfix_active = false
+    if success and unit_data_extension then
+        return unit_data_extension:read_component("warp_charge")
     end
+    return nil
 end
 
-local function is_warp_unbound_buff_active()
-    local player = get_player()
-    if not player then return false end
-    local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then return false end
-    
-    local success, buff_extension = pcall(ScriptUnit.extension, player_unit, "buff_system")
-    if not success or not buff_extension then return false end
+-- The simplest check: see if weapon has a warp_charge_template
+-- Placeholder: refine this logic if we want a different “perilous” definition
+local function is_weapon_perilous(player_unit)
+    local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
+    if not weapon_extension then
+        return false
+    end
 
-    for _, buff in pairs(buff_extension._buffs_by_index) do
-        local template = buff:template()
-        if template and template.name == "psyker_overcharge_stance_infinite_casting" then
-            return true
-        end
+    local warp_charge_template = weapon_extension:warp_charge_template()
+    return (warp_charge_template ~= nil)
+end
+
+-- Check if Psychic Fortress or Warp Unbound buff is present
+local function has_protection_buff(player_unit)
+    local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
+
+    if buff_extension then
+        -- Placeholder keywords/names: confirm these match your buff definition
+        local has_psychic_fortress = buff_extension:has_keyword("psychic_fortress")
+        return has_psychic_fortress
+
     end
 
     return false
 end
 
--- Hook into PlayerUnitAbilityExtension to confirm ability is actually used
-mod:hook_safe("PlayerUnitAbilityExtension", "use_ability_charge", function(self, ability_type, optional_num_charges)
-    if ability_type == "combat_ability" and attempted_ability_usage then
-        ability_triggered = true
-        attempted_ability_usage = false
-        waiting_on_buff = true
-    end
-end)
+------------------------------------------------------------------------------
+-- 2. The Input Hook
+------------------------------------------------------------------------------
 
--- Hook into InputService to disable certain actions when necessary
+-- We hook InputService:_get() to override the game’s interpretation of inputs
 mod:hook("InputService", "_get", function(func, self, action_name)
-    if action_name ~= "action_one_pressed" and
-        action_name ~= "action_one_hold" and
-        action_name ~= "action_one_release" and
-        action_name ~= "action_two_pressed" and
-        action_name ~= "action_two_hold" and
-        action_name ~= "action_two_release" and
-        action_name ~= "weapon_extra_pressed" and
-        action_name ~= "weapon_extra_hold" and
-        action_name ~= "weapon_extra_release" and
-        action_name ~= "weapon_reload" and
-        action_name ~= "weapon_reload_hold" and
-        action_name ~= "pressed" and
-        action_name ~= "combat_ability_hold" and
-        action_name ~= "combat_ability_release"
+    -- Let the original method run first, so we know the default result
+    local result = func(self, action_name)
+
+    -- Decide which actions we want to potentially block
+    -- (e.g. main fire: "action_one_*"; alt fire: "action_two_*"; etc.)
+    if action_name ~= "action_one_pressed"
+       and action_name ~= "action_one_hold"
+       and action_name ~= "action_one_release"
+       and action_name ~= "weapon_extra_pressed"
+       and action_name ~= "weapon_extra_hold"
+       and action_name ~= "weapon_extra_release"
     then
-        return func(self, action_name)
-    end
-    
-    update_weapon_status()
-
-    if waiting_on_buff and is_warp_unbound_buff_active() then
-        waiting_on_buff = false
+        -- If it’s not one of these, we do nothing
+        return result
     end
 
-    -- Warp Unbound LMB disabling functionality
-    if mod:get("warp_unbound_bug_fix_enable") then
-        if action_name == "combat_ability_hold" then
-            -- Player attempts to use the ability. Mark the attempt but do not set ability_triggered yet.
-            if func(self, action_name) then
-                attempted_ability_usage = true
-            end
-        end
-        -- Only reset intervals if the ability was actually triggered
-        if action_name == "combat_ability_release" and func(self, action_name) and ability_triggered then
-            warp_unbound_bugfix_interval1_triggered = false
-            warp_unbound_bugfix_interval2_triggered = false
-            ability_triggered = false
-            attempted_ability_usage = false
-        end
-
-        if warp_unbound_bugfix_active and is_warp_unbound_buff_active() and is_perilous_weapon then
-            -- Disable primary attack (LMB) for perilous weapons
-            if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" or action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
-                return false
-            end
-            -- Disable special attack keys for force swords
-            if is_forcesword and (action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra_release") then
-                return false
-            end
-            -- Disable Reload/Quell when Warp Unbound is active
-            if is_warp_unbound_buff_active() and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
-                return false
-            end
-        end
+    -- Get local player info
+    local player = get_local_player()
+    if not player then
+        return result
     end
 
-    return func(self, action_name)
+    local player_unit = player.player_unit
+    if not player_unit or not Unit.alive(player_unit) then
+        return result
+    end
+
+    -- Get warp charge state
+    local warp_charge_component = get_warp_charge_component(player_unit)
+    if not warp_charge_component then
+        return result
+    end
+
+    local current_percentage = warp_charge_component.current_percentage or 0
+    local state = warp_charge_component.state or "idle"
+
+    -- Check if we’re in the “pre-explosion” window (≥100%, but not yet exploding)
+    local is_pre_explosion = (current_percentage >= 1) and (state ~= "exploding")
+
+    -- Check if the weapon is perilous
+    local perilous_weapon = is_weapon_perilous(player_unit)
+
+    -- Check if the protective buff is active
+    local protected_by_buff = has_protection_buff(player_unit)
+
+    -- If all conditions are met, block input
+    if is_pre_explosion and perilous_weapon and not protected_by_buff then
+        -- OPTIONAL: Provide feedback to the user, e.g. a beep
+        -- WwiseWorld.trigger_event(wwise_world, "my_block_sound")
+
+        -- Return false so the game does NOT register this input
+        return false
+    end
+
+    -- Otherwise, let the normal input pass through
+    return result
 end)
 
--- Update function to monitor peril and manage disabling of actions
-function mod.update(dt)
-    warp_unbound_bugfix(dt)
+------------------------------------------------------------------------------
+-- 3. Lifecycle: Update / Other Hooks
+------------------------------------------------------------------------------
+
+-- If we want an update function to do housekeeping each frame, we can do so:
+-- Note: This is entirely optional. If we only rely on the input hook, we may not need an update.
+--function mod.update(dt)
+    -- e.g. debug logs, or anything else we want done each frame
+    -- Placeholder: 
+    -- mod:echo("Update was called, dt="..tostring(dt))
+--end
+
+-- We can also handle user settings changes, if we have a mod option file
+mod.on_setting_changed = function(setting_id)
+    -- Placeholder: e.g. refresh local variables from mod:get("my_setting")
 end
 
 return mod
