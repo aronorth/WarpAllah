@@ -1,165 +1,152 @@
---[[
-┌───────────────────────────────────────────────────────────────────────────┐
-│ Mod Name: WarpAllah                                                       │
-│ Description: A better approach to fixing the warp unbound bug.            │
-│ Author: Aronorth                                                          │
-└───────────────────────────────────────────────────────────────────────────┘
---]]
-
-local mod = get_mod("WarpAllah") -- Make sure this matches the folder name
+-- File: scripts/mods/WarpAllah/WarpAllah.lua
+-- (Ensure your folder & get_mod("<name>") match up.)
+local mod = get_mod("WarpAllah")
 
 ------------------------------------------------------------------------------
--- 1. Utility / Helper Functions
+-- 1. Require the original warp_charge module so we can hook it
+--    The path below must match the Darktide decompiled folder structure.
+------------------------------------------------------------------------------
+local WarpCharge = require("scripts/utilities/warp_charge")
+
+------------------------------------------------------------------------------
+-- 2. Some optional data structures to store each player's (or unit's) peril
 ------------------------------------------------------------------------------
 
--- Placeholder: Adjust as needed
--- "Managers" is assumed to be globally available via Darktide’s environment.
-local function get_local_player()
-    -- Return the local human player (slot #1)
-    if Managers and Managers.state and Managers.state.game_mode then
-        local player_manager = Managers.player
-        return player_manager and player_manager:local_player(1)
+-- We'll keep a table of warp charge states, keyed by a unit.
+-- Example: mod._warp_charge_data[unit] = { current_percentage=0, state="idle", etc. }
+mod._warp_charge_data = {}
+
+-- Simple utility to store or update the warp charge data for a given unit.
+local function set_warp_data_for_unit(unit, warp_charge_component)
+    if not mod._warp_charge_data[unit] then
+        mod._warp_charge_data[unit] = {}
     end
 
-    return nil
+    local data = mod._warp_charge_data[unit]
+    data.current_percentage = warp_charge_component.current_percentage
+    data.state = warp_charge_component.state
+    -- Add anything else you want to track
 end
 
-local function get_warp_charge_component(player_unit)
-    -- Safely retrieve the warp_charge component
-    local success, unit_data_extension = pcall(ScriptUnit.extension, player_unit, "unit_data_system")
-    if success and unit_data_extension then
-        return unit_data_extension:read_component("warp_charge")
+------------------------------------------------------------------------------
+-- 3. Hook the relevant WarpCharge functions
+------------------------------------------------------------------------------
+-- NOTE: We use hook_safe so that our code runs AFTER the original function
+--       has finished updating warp_charge_component.
+
+-- 3a) Hook: increase_immediate
+mod:hook_safe(WarpCharge, "increase_immediate", function(t, charge_level, warp_charge_component, charge_template, owner_unit, warp_charge_modifier, prevent_explosion)
+    -- The game has just updated warp_charge_component.current_percentage
+    -- to the final value after all multipliers.
+
+    -- Store it
+    set_warp_data_for_unit(owner_unit, warp_charge_component)
+
+    -- Optionally, show some debug info:
+    mod:echo("[increase_immediate] final peril = %.2f (state=%s)", 
+        warp_charge_component.current_percentage, 
+        warp_charge_component.state
+    )
+end)
+
+-- 3b) Hook: increase_over_time
+mod:hook_safe(WarpCharge, "increase_over_time", function(dt, t, charge_level, warp_charge_component, charge_template, owner_unit, first_charge)
+    set_warp_data_for_unit(owner_unit, warp_charge_component)
+
+    mod:echo("[increase_over_time] final peril = %.2f (state=%s)", 
+        warp_charge_component.current_percentage, 
+        warp_charge_component.state
+    )
+end)
+
+-- 3c) Hook: decrease_immediate
+mod:hook_safe(WarpCharge, "decrease_immediate", function(remove_percentage, warp_charge_component, unit)
+    set_warp_data_for_unit(unit, warp_charge_component)
+
+    mod:echo("[decrease_immediate] final peril = %.2f (state=%s)", 
+        warp_charge_component.current_percentage, 
+        warp_charge_component.state
+    )
+end)
+
+-- 3d) Hook: update_venting
+mod:hook_safe(WarpCharge, "update_venting", function(dt, t, player, warp_charge_component)
+    local player_unit = player.player_unit
+    set_warp_data_for_unit(player_unit, warp_charge_component)
+
+    mod:echo("[update_venting] final peril = %.2f (state=%s)", 
+        warp_charge_component.current_percentage, 
+        warp_charge_component.state
+    )
+end)
+
+------------------------------------------------------------------------------
+-- 4. Possibly hook or override "can_vent" or "check_new_state" if you want 
+--    to detect transitions to “exploding.” But hooking the above 4 functions 
+--    is usually enough to see final peril values.
+------------------------------------------------------------------------------
+
+-- Example hooking check_new_state, purely for demonstration:
+mod:hook_safe(WarpCharge, "check_new_state", function(warp_charge_component, prevent_explosion)
+    mod:debug("[check_new_state] called. current_percentage=%.2f, prevent_explosion=%s", 
+        warp_charge_component.current_percentage, 
+        tostring(prevent_explosion)
+    )
+end)
+
+------------------------------------------------------------------------------
+-- 5. Reacting to the stored data (e.g. blocking input) 
+--    You can then use mod._warp_charge_data in your InputService hook, or 
+--    your mod.update() function to decide if you should block certain actions.
+------------------------------------------------------------------------------
+
+-- Example: a simplified InputService hook that references our stored peril:
+local function is_in_explosion_risk(unit)
+    local data = mod._warp_charge_data[unit]
+    if data then
+        local peril = data.current_percentage or 0
+        local state = data.state or "idle"
+        -- Some logic to say if it's "pre-explosion"
+        return (peril >= 1.0 and state ~= "exploding")
     end
-    return nil
-end
-
--- The simplest check: see if weapon has a warp_charge_template
--- Placeholder: refine this logic if we want a different “perilous” definition
-local function is_weapon_perilous(player_unit)
-    local weapon_extension = ScriptUnit.has_extension(player_unit, "weapon_system")
-    if not weapon_extension then
-        return false
-    end
-
-    local warp_charge_template = weapon_extension:warp_charge_template()
-    return (warp_charge_template ~= nil)
-end
-
--- Check if Psychic Fortress or Warp Unbound buff is present
-local function has_protection_buff(player_unit)
-    local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
-
-    if buff_extension then
-        -- Placeholder keywords/names: confirm these match your buff definition
-        local has_psychic_fortress = buff_extension:has_keyword("psychic_fortress")
-        return has_psychic_fortress
-
-    end
-
     return false
 end
 
-------------------------------------------------------------------------------
--- 2. The Input Hook
-------------------------------------------------------------------------------
-
--- We hook InputService:_get() to override the game’s interpretation of inputs
 mod:hook("InputService", "_get", function(func, self, action_name)
-    -- Let the original method run first, so we know the default result
+    -- Original behavior
     local result = func(self, action_name)
 
-    -- If the game’s result is already false (meaning the action isn’t pressed/held),
-    -- we can bail out early without further checks or printing.
-    if not result then
-        return false
-    end
-
-    -- Decide which actions we want to potentially block
-    -- (e.g. main fire: "action_one_*"; alt fire: "action_two_*"; etc.)
-    if action_name ~= "action_one_pressed"
-       and action_name ~= "action_one_hold"
-       and action_name ~= "action_one_release"
-       and action_name ~= "weapon_extra_pressed"
-       and action_name ~= "weapon_extra_hold"
-       and action_name ~= "weapon_extra_release"
+    -- Quick filter: only check certain action names
+    if action_name ~= "action_one_pressed" and
+       action_name ~= "action_one_hold" and
+       action_name ~= "action_one_release" and
+       action_name ~= "weapon_extra_pressed" and
+       action_name ~= "weapon_extra_hold" and
+       action_name ~= "weapon_extra_release"
     then
-        -- If it’s not one of these, we do nothing
         return result
     end
 
-    -- Get local player info
-    local player = get_local_player()
+    -- Identify local player
+    local player = Managers and Managers.player and Managers.player:local_player(1)
     if not player then
         return result
     end
 
-    local player_unit = player.player_unit
-    if not player_unit or not Unit.alive(player_unit) then
+    local unit = player.player_unit
+    if not unit or not Unit.alive(unit) then
         return result
     end
 
-    -- Get warp charge state
-    local warp_charge_component = get_warp_charge_component(player_unit)
-    if not warp_charge_component then
-        mod:echo(string.format(
-            "[Debug] Action=%s => No warp_charge_component found!",
-            action_name
-        ))
-        return result
-    end
-
-    local current_percentage = warp_charge_component.current_percentage or 0
-    local state = warp_charge_component.state or "idle"
-
-    -- Check if we’re in the “pre-explosion” window (≥100%, but not yet exploding)
-    local is_pre_explosion = (current_percentage >= 1) and (state ~= "exploding")
-
-    -- Check if the weapon is perilous
-    local perilous_weapon = is_weapon_perilous(player_unit)
-
-    -- Check if the protective buff is active
-    local protected_by_buff = has_protection_buff(player_unit)
-
-    -- Debug info: Print out the relevant state every time we press/hold/release
-mod:echo(string.format(
-    "[Debug] Action=%s => Peril=%.2f, State=%s, InPreExplode=%s, PerilousWeapon=%s, Protected=%s",
-    action_name,
-    current_percentage,
-    state,
-    tostring(is_pre_explosion),
-    tostring(perilous_weapon),
-    tostring(protected_by_buff)
-    ))
-
-    -- If all conditions are met, block input
-    if is_pre_explosion and perilous_weapon and not protected_by_buff then
-        -- OPTIONAL: Provide feedback to the user, e.g. a beep
-        -- WwiseWorld.trigger_event(wwise_world, "my_block_sound")
-
-        -- Return false so the game does NOT register this input
+    -- Now, check if we are in the "risky" state from our tracked data
+    if is_in_explosion_risk(unit) then
+        mod:echo("[WarpAllah] Blocking input: %s (peril=%.2f)", 
+            action_name, mod._warp_charge_data[unit].current_percentage
+        )
         return false
     end
 
-    -- Otherwise, let the normal input pass through
     return result
 end)
 
-------------------------------------------------------------------------------
--- 3. Lifecycle: Update / Other Hooks
-------------------------------------------------------------------------------
-
--- If we want an update function to do housekeeping each frame, we can do so:
--- Note: This is entirely optional. If we only rely on the input hook, we may not need an update.
---function mod.update(dt)
-    -- e.g. debug logs, or anything else we want done each frame
-    -- Placeholder: 
-    -- mod:echo("Update was called, dt="..tostring(dt))
---end
-
--- We can also handle user settings changes, if we have a mod option file
-mod.on_setting_changed = function(setting_id)
-    -- Placeholder: e.g. refresh local variables from mod:get("my_setting")
-end
-
-return mod
-
+-- Done! In real usage, you’d refine, remove debug prints, etc.
