@@ -1,19 +1,17 @@
 --[[ 
 File: scripts/mods/WarpAllah/WarpAllah.lua
-(Ensure your folder name & get_mod("<name>") match!)
+Ensure your folder name matches and get_mod("WarpAllah") references that folder!
 --]]
-
 local mod = get_mod("WarpAllah")
 
---------------------------------------------------------------------------------
--- 1. Require the warp_charge module so we can hook it
---    (Adjust this path based on your decompiled folder structure!)
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- 1. Require warp_charge so we can hook it
+------------------------------------------------------------------------------
 local WarpCharge = require("scripts/utilities/warp_charge")
 
---------------------------------------------------------------------------------
--- 2. We store the warp charge data for each unit after each update
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- 2. Warp Charge Data Storage
+------------------------------------------------------------------------------
 mod._warp_charge_data = {}
 
 local function set_warp_data_for_unit(unit, warp_charge_component)
@@ -26,69 +24,77 @@ local function set_warp_data_for_unit(unit, warp_charge_component)
     data.state = warp_charge_component.state
 end
 
---------------------------------------------------------------------------------
--- 3. Hook relevant WarpCharge functions to capture final peril values
---------------------------------------------------------------------------------
-
--- Increase immediate
+------------------------------------------------------------------------------
+-- 3. Hook the relevant WarpCharge functions
+------------------------------------------------------------------------------
 mod:hook_safe(WarpCharge, "increase_immediate", function(t, charge_level, warp_charge_component, charge_template, owner_unit, warp_charge_modifier, prevent_explosion)
     set_warp_data_for_unit(owner_unit, warp_charge_component)
-    mod:debug("[WarpAllah] increase_immediate -> peril=%.2f, state=%s", 
-        warp_charge_component.current_percentage, warp_charge_component.state
+    mod:debug("[WarpAllah] increase_immediate -> peril=%.2f, state=%s",
+        warp_charge_component.current_percentage,
+        warp_charge_component.state
     )
 end)
 
--- Increase over time
 mod:hook_safe(WarpCharge, "increase_over_time", function(dt, t, charge_level, warp_charge_component, charge_template, owner_unit, first_charge)
     set_warp_data_for_unit(owner_unit, warp_charge_component)
-    mod:debug("[WarpAllah] increase_over_time -> peril=%.2f, state=%s", 
-        warp_charge_component.current_percentage, warp_charge_component.state
+    mod:debug("[WarpAllah] increase_over_time -> peril=%.2f, state=%s",
+        warp_charge_component.current_percentage,
+        warp_charge_component.state
     )
 end)
 
--- Decrease immediate
 mod:hook_safe(WarpCharge, "decrease_immediate", function(remove_percentage, warp_charge_component, unit)
     set_warp_data_for_unit(unit, warp_charge_component)
-    mod:debug("[WarpAllah] decrease_immediate -> peril=%.2f, state=%s", 
-        warp_charge_component.current_percentage, warp_charge_component.state
+    mod:debug("[WarpAllah] decrease_immediate -> peril=%.2f, state=%s",
+        warp_charge_component.current_percentage,
+        warp_charge_component.state
     )
 end)
 
--- Update venting
 mod:hook_safe(WarpCharge, "update_venting", function(dt, t, player, warp_charge_component)
     local player_unit = player.player_unit
     set_warp_data_for_unit(player_unit, warp_charge_component)
-    mod:debug("[WarpAllah] update_venting -> peril=%.2f, state=%s", 
-        warp_charge_component.current_percentage, warp_charge_component.state
+    mod:debug("[WarpAllah] update_venting -> peril=%.2f, state=%s",
+        warp_charge_component.current_percentage,
+        warp_charge_component.state
     )
 end)
 
---------------------------------------------------------------------------------
--- 4. Utilities
---------------------------------------------------------------------------------
-
--- Check if a buff is currently active on the unit.
--- Adjust the buff keyword if your target buff uses a different name
-local function has_protection_buff(unit)
+------------------------------------------------------------------------------
+-- 4. Buff Checks
+------------------------------------------------------------------------------
+-- 4a) Is Scrier's Gaze (psyker_overcharge_stance) active? 
+--     We only start blocking if this stance is active.
+local function is_scriers_gaze_active(unit)
     local buff_extension = ScriptUnit.has_extension(unit, "buff_system")
-    if buff_extension and buff_extension:has_keyword("psychic_fortress") then
-        return true
+    if not buff_extension then
+        return false
     end
-    return false
+
+    -- If your decompiled scripts show a different keyword or buff name,
+    -- adjust accordingly. E.g. "psyker_overcharge_stance"
+    return buff_extension:has_keyword("psyker_overcharge_stance")
 end
 
--- Check if a weapon is “perilous” by seeing if it has a warp_charge_template
-local function is_perilous_weapon(unit)
-    local weapon_extension = ScriptUnit.has_extension(unit, "weapon_system")
-    if weapon_extension then
-        local warp_charge_template = weapon_extension:warp_charge_template()
-        return warp_charge_template ~= nil
+-- 4b) Is explosion immunity (psychic_fortress or warp_unbound) active?
+--     We stop blocking once this buff is on.
+local function has_explosion_immunity(unit)
+    local buff_extension = ScriptUnit.has_extension(unit, "buff_system")
+    if not buff_extension then
+        return false
     end
-    return false
+
+    -- Common names could be "psychic_fortress", "warp_unbound",
+    -- "psyker_overcharge_stance_infinite_casting", or some other buff keyword.
+    -- Adjust as needed.
+    return buff_extension:has_keyword("psychic_fortress") or
+           buff_extension:has_keyword("warp_unbound") or
+           buff_extension:has_keyword("psyker_overcharge_stance_infinite_casting")
 end
 
--- Decide if we’re in the “pre-explosion risk” state:
--- i.e., peril >= 100% but not yet actually “exploding”
+------------------------------------------------------------------------------
+-- 5. Utility: Are we at or above 100% peril, but not "exploding" yet?
+------------------------------------------------------------------------------
 local function is_in_explosion_risk(unit)
     local data = mod._warp_charge_data[unit]
     if data then
@@ -99,15 +105,26 @@ local function is_in_explosion_risk(unit)
     return false
 end
 
---------------------------------------------------------------------------------
--- 5. Hook InputService to block attacks if in “pre-explosion” with no buff
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- 6. Is our weapon perilous?
+------------------------------------------------------------------------------
+local function is_perilous_weapon(unit)
+    local weapon_extension = ScriptUnit.has_extension(unit, "weapon_system")
+    if weapon_extension then
+        local warp_charge_template = weapon_extension:warp_charge_template()
+        return (warp_charge_template ~= nil)
+    end
+    return false
+end
+
+------------------------------------------------------------------------------
+-- 7. Hook InputService to block *only* during Scrier’s Gaze & pre-explosion
+------------------------------------------------------------------------------
 mod:hook("InputService", "_get", function(func, self, action_name)
-    -- Let the original call happen first
+    -- Run original logic
     local result = func(self, action_name)
 
-    -- We only care about certain input actions, e.g. primary / special attacks
-    -- Tweak this list as needed
+    -- Only watch for main attacks or special attacks
     if  action_name ~= "action_one_pressed" and
         action_name ~= "action_one_hold" and
         action_name ~= "action_one_release" and
@@ -115,7 +132,6 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         action_name ~= "weapon_extra_hold" and
         action_name ~= "weapon_extra_release"
     then
-        -- Not relevant to us, return original result
         return result
     end
 
@@ -130,45 +146,41 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         return result
     end
 
-    -- Check our stored peril data
-    local should_block = false
-
-    -- Are we at or above 100% peril but not exploding yet?
-    if is_in_explosion_risk(player_unit) then
-        -- Also check if the weapon is perilous 
-        if is_perilous_weapon(player_unit) then
-            -- Also check if we have a protective buff 
-            if not has_protection_buff(player_unit) then
-                -- If the buff is NOT active, we want to block
-                should_block = true
-            end
-        end
+    -- First, confirm scriers gaze is active
+    if not is_scriers_gaze_active(player_unit) then
+        -- We do NOT block if the stance isn't active
+        return result
     end
 
-    if should_block then
-        mod:echo("[WarpAllah] Blocking input '%s' at peril=%.2f (no buff)",
+    -- Next, check if we have explosion immunity
+    if has_explosion_immunity(player_unit) then
+        -- If we do, do NOT block 
+        return result
+    end
+
+    -- Finally, see if our peril is at risk & the weapon is “perilous”
+    if is_in_explosion_risk(player_unit) and is_perilous_weapon(player_unit) then
+        mod:echo("[WarpAllah] Blocking input '%s' due to pre-explosion risk (peril=%.2f)",
             action_name,
             mod._warp_charge_data[player_unit].current_percentage
         )
         return false
     end
 
-    -- Otherwise, allow the input
+    -- Otherwise, let the input pass
     return result
 end)
 
---------------------------------------------------------------------------------
--- 6. (Optional) Lifecycle functions if needed
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- 8. (Optional) Lifecycle Functions
+------------------------------------------------------------------------------
 
--- If you want a per-frame update:
 -- function mod.update(dt)
---     -- Potentially do more logic, if you want
+--     -- For advanced logic each frame, if needed
 -- end
 
--- If you want to handle mod settings:
 -- function mod.on_setting_changed(setting_id)
---     -- refresh config, etc.
+--     -- If you have mod settings, handle them here
 -- end
 
 return mod
