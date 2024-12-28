@@ -1,8 +1,11 @@
+mod:echo("WarpAllah one loaded!")  -- or mod:info("...")
 --[[ 
 File: scripts/mods/WarpAllah/WarpAllah.lua
 Ensure your folder name matches and get_mod("WarpAllah") references that folder!
 --]]
 local mod = get_mod("WarpAllah")
+
+mod:echo("WarpAllah two loaded!")  -- or mod:info("...")
 
 ------------------------------------------------------------------------------
 -- 1. Require warp_charge so we can hook it
