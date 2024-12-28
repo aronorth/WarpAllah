@@ -1,20 +1,23 @@
-mod:echo("WarpAllah one loaded!")  -- or mod:info("...")
---[[ 
-File: scripts/mods/WarpAllah/WarpAllah.lua
-Ensure your folder name matches and get_mod("WarpAllah") references that folder!
---]]
+-- File: scripts/mods/WarpAllah/WarpAllah.lua
+-- Make sure your folder is named WarpAllah, and your get_mod() call matches.
+
 local mod = get_mod("WarpAllah")
 
-mod:echo("WarpAllah two loaded!")  -- or mod:info("...")
+------------------------------------------------------------------------------
+-- 1. Require the warp_charge module so we can hook it
+--    The path must match the official internal path. Typically:
+--    "scripts/utilities/warp_charge"
+------------------------------------------------------------------------------
 
-------------------------------------------------------------------------------
--- 1. Require warp_charge so we can hook it
-------------------------------------------------------------------------------
 local WarpCharge = require("scripts/utilities/warp_charge")
 
+-- If this returns nil or errors, your path might be different or the game
+-- environment might not expose it the same way. Adjust as needed.
+
 ------------------------------------------------------------------------------
--- 2. Warp Charge Data Storage
+-- 2. We store the warp charge data for each unit after each update
 ------------------------------------------------------------------------------
+
 mod._warp_charge_data = {}
 
 local function set_warp_data_for_unit(unit, warp_charge_component)
@@ -28,9 +31,14 @@ local function set_warp_data_for_unit(unit, warp_charge_component)
 end
 
 ------------------------------------------------------------------------------
--- 3. Hook the relevant WarpCharge functions
+-- 3. Hook relevant WarpCharge functions to capture final peril values
 ------------------------------------------------------------------------------
-mod:hook_safe(WarpCharge, "increase_immediate", function(t, charge_level, warp_charge_component, charge_template, owner_unit, warp_charge_modifier, prevent_explosion)
+
+-- Called every time warp charge increases immediately
+mod:hook_safe(WarpCharge, "increase_immediate", function(
+    t, charge_level, warp_charge_component, charge_template,
+    owner_unit, warp_charge_modifier, prevent_explosion
+)
     set_warp_data_for_unit(owner_unit, warp_charge_component)
     mod:debug("[WarpAllah] increase_immediate -> peril=%.2f, state=%s",
         warp_charge_component.current_percentage,
@@ -38,7 +46,11 @@ mod:hook_safe(WarpCharge, "increase_immediate", function(t, charge_level, warp_c
     )
 end)
 
-mod:hook_safe(WarpCharge, "increase_over_time", function(dt, t, charge_level, warp_charge_component, charge_template, owner_unit, first_charge)
+-- Called every time warp charge increases over time (e.g. channeling)
+mod:hook_safe(WarpCharge, "increase_over_time", function(
+    dt, t, charge_level, warp_charge_component,
+    charge_template, owner_unit, first_charge
+)
     set_warp_data_for_unit(owner_unit, warp_charge_component)
     mod:debug("[WarpAllah] increase_over_time -> peril=%.2f, state=%s",
         warp_charge_component.current_percentage,
@@ -46,7 +58,10 @@ mod:hook_safe(WarpCharge, "increase_over_time", function(dt, t, charge_level, wa
     )
 end)
 
-mod:hook_safe(WarpCharge, "decrease_immediate", function(remove_percentage, warp_charge_component, unit)
+-- Called every time warp charge decreases immediately (e.g. quell, some talents)
+mod:hook_safe(WarpCharge, "decrease_immediate", function(
+    remove_percentage, warp_charge_component, unit
+)
     set_warp_data_for_unit(unit, warp_charge_component)
     mod:debug("[WarpAllah] decrease_immediate -> peril=%.2f, state=%s",
         warp_charge_component.current_percentage,
@@ -54,6 +69,7 @@ mod:hook_safe(WarpCharge, "decrease_immediate", function(remove_percentage, warp
     )
 end)
 
+-- Called every time warp charge updates venting (i.e. “venting mode”)
 mod:hook_safe(WarpCharge, "update_venting", function(dt, t, player, warp_charge_component)
     local player_unit = player.player_unit
     set_warp_data_for_unit(player_unit, warp_charge_component)
@@ -64,73 +80,71 @@ mod:hook_safe(WarpCharge, "update_venting", function(dt, t, player, warp_charge_
 end)
 
 ------------------------------------------------------------------------------
--- 4. Buff Checks
+-- 4. Optional: Hook check_new_state to see transitions (exploding, etc.)
 ------------------------------------------------------------------------------
--- 4a) Is Scrier's Gaze (psyker_overcharge_stance) active? 
---     We only start blocking if this stance is active.
-local function is_scriers_gaze_active(player_unit)
-    local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
-    if buff_extension then
-        for _, buff in pairs(buff_extension:buffs()) do
-            local template = buff:template()
-            if template and template.name == "psyker_overcharge_stance" then
-                return true
-            end
-        end
-    end
 
+mod:hook_safe(WarpCharge, "check_new_state", function(warp_charge_component, prevent_explosion)
+    mod:debug("[WarpAllah] check_new_state -> current=%.2f, prevent_explosion=%s, final_state=%s",
+        warp_charge_component.current_percentage,
+        tostring(prevent_explosion),
+        warp_charge_component.state
+    )
+end)
+
+------------------------------------------------------------------------------
+-- 5. Buff Checking: “Psychic Fortress” or “Warp Unbound”
+------------------------------------------------------------------------------
+
+-- Example function to see if we have the protective buff
+-- Adjust the keyword(s) to match the real buff name. 
+local function has_protection_buff(unit)
+    local buff_extension = ScriptUnit.has_extension(unit, "buff_system")
+    if buff_extension and buff_extension:has_keyword("psychic_fortress") then
+        -- Or: buff_extension:has_buff_id("psyker_overcharge_stance_infinite_casting")
+        return true
+    end
     return false
 end
 
--- 4b) Is explosion immunity (psychic_fortress or warp_unbound) active?
---     We stop blocking once this buff is on.
-local function has_explosion_immunity(unit)
-    local buff_extension = ScriptUnit.has_extension(unit, "buff_system")
-    if not buff_extension then
-        return false
-    end
+------------------------------------------------------------------------------
+-- 6. Checking Weapon “Perilous”
+------------------------------------------------------------------------------
 
-    -- Common names could be "psychic_fortress", "warp_unbound",
-    -- "psyker_overcharge_stance_infinite_casting", or some other buff keyword.
-    -- Adjust as needed.
-    return buff_extension:has_keyword("psychic_fortress") or
-           buff_extension:has_keyword("warp_unbound") or
-           buff_extension:has_keyword("psyker_overcharge_stance_infinite_casting")
+-- In some builds, we want to see if the weapon itself uses warp_charge
+-- so we only block if the weapon is generating peril
+local function is_perilous_weapon(unit)
+    local weapon_extension = ScriptUnit.has_extension(unit, "weapon_system")
+    if weapon_extension then
+        local warp_charge_template = weapon_extension:warp_charge_template()
+        return warp_charge_template ~= nil
+    end
+    return false
 end
 
 ------------------------------------------------------------------------------
--- 5. Utility: Are we at or above 100% peril, but not "exploding" yet?
+-- 7. Helper: Are we in “pre-explosion” state?
 ------------------------------------------------------------------------------
+
 local function is_in_explosion_risk(unit)
     local data = mod._warp_charge_data[unit]
     if data then
         local peril = data.current_percentage or 0
         local state = data.state or "idle"
+        -- We consider “pre-explosion” if peril >= 100% but state ~= "exploding"
         return (peril >= 1.0 and state ~= "exploding")
     end
     return false
 end
 
 ------------------------------------------------------------------------------
--- 6. Is our weapon perilous?
+-- 8. Hook InputService to block risky actions
 ------------------------------------------------------------------------------
-local function is_perilous_weapon(unit)
-    local weapon_extension = ScriptUnit.has_extension(unit, "weapon_system")
-    if weapon_extension then
-        local warp_charge_template = weapon_extension:warp_charge_template()
-        return (warp_charge_template ~= nil)
-    end
-    return false
-end
 
-------------------------------------------------------------------------------
--- 7. Hook InputService to block *only* during Scrier’s Gaze & pre-explosion
-------------------------------------------------------------------------------
 mod:hook("InputService", "_get", function(func, self, action_name)
-    -- Run original logic
     local result = func(self, action_name)
 
-    -- Only watch for main attacks or special attacks
+    -- Quick filter: if we’re not dealing with M1 or alt-fire or special-attack,
+    -- skip any checks. Adjust these action_name checks as you see fit.
     if  action_name ~= "action_one_pressed" and
         action_name ~= "action_one_hold" and
         action_name ~= "action_one_release" and
@@ -142,7 +156,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     end
 
     -- Identify local player
-    local player = Managers and Managers.player and Managers.player:local_player(1)
+    local player = Managers.player:local_player(1)
     if not player then
         return result
     end
@@ -152,41 +166,56 @@ mod:hook("InputService", "_get", function(func, self, action_name)
         return result
     end
 
-    -- First, confirm scriers gaze is active
-    if not is_scriers_gaze_active(player_unit) then
-        -- We do NOT block if the stance isn't active
+    -- Check our stored peril data
+    local data = mod._warp_charge_data[player_unit]
+    if not data then
+        -- If we have no data, we can't be certain. If you want to “overblock”
+        -- when uncertain, you could do so here. But let's skip for now:
         return result
     end
 
-    -- Next, check if we have explosion immunity
-    if has_explosion_immunity(player_unit) then
-        -- If we do, do NOT block 
-        return result
+    local should_block = false
+
+    -- 1) Are we in pre-explosion risk? (≥100% peril but not exploding)
+    if is_in_explosion_risk(player_unit) then
+        -- 2) Is the current weapon perilous?
+        if is_perilous_weapon(player_unit) then
+            -- 3) Are we missing a protective buff?
+            if not has_protection_buff(player_unit) then
+                should_block = true
+            end
+        end
     end
 
-    -- Finally, see if our peril is at risk & the weapon is “perilous”
-    if is_in_explosion_risk(player_unit) and is_perilous_weapon(player_unit) then
-        mod:echo("[WarpAllah] Blocking input '%s' due to pre-explosion risk (peril=%.2f)",
-            action_name,
-            mod._warp_charge_data[player_unit].current_percentage
+    -- If blocking, output debug and return false
+    if should_block then
+        mod:echo("[WarpAllah] Blocking '%s' at peril=%.2f (no protection buff)",
+            action_name, data.current_percentage
         )
         return false
     end
 
-    -- Otherwise, let the input pass
     return result
 end)
 
 ------------------------------------------------------------------------------
--- 8. (Optional) Lifecycle Functions
+-- 9. Optional Lifecycle: update / on_setting_changed, etc.
 ------------------------------------------------------------------------------
 
--- function mod.update(dt)
---     -- For advanced logic each frame, if needed
--- end
+function mod.update(dt)
+    -- You can do housekeeping here if needed
+    -- e.g., remove data for old units that no longer exist, etc.
+    -- For basic usage, it might remain empty
+end
 
--- function mod.on_setting_changed(setting_id)
---     -- If you have mod settings, handle them here
--- end
+function mod.on_setting_changed(setting_id)
+    -- If you have in-game mod settings, you can refresh local variables
+    -- e.g., some threshold, a toggle, etc.
+end
+
+------------------------------------------------------------------------------
+-- 10. Return the mod object
+------------------------------------------------------------------------------
 
 return mod
+
