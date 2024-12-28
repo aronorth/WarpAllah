@@ -68,15 +68,18 @@ end)
 ------------------------------------------------------------------------------
 -- 4a) Is Scrier's Gaze (psyker_overcharge_stance) active? 
 --     We only start blocking if this stance is active.
-local function is_scriers_gaze_active(unit)
-    local buff_extension = ScriptUnit.has_extension(unit, "buff_system")
-    if not buff_extension then
-        return false
+local function is_scriers_gaze_active(player_unit)
+    local buff_extension = ScriptUnit.has_extension(player_unit, "buff_system")
+    if buff_extension then
+        for _, buff in pairs(buff_extension:buffs()) do
+            local template = buff:template()
+            if template and template.name == "psyker_overcharge_stance" then
+                return true
+            end
+        end
     end
 
-    -- If your decompiled scripts show a different keyword or buff name,
-    -- adjust accordingly. E.g. "psyker_overcharge_stance"
-    return buff_extension:has_keyword("psyker_overcharge_stance")
+    return false
 end
 
 -- 4b) Is explosion immunity (psychic_fortress or warp_unbound) active?
