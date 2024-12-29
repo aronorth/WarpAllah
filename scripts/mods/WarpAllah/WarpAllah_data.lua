@@ -30,7 +30,7 @@ return {
                 decimals_number = 1,
                 title         = "Auto-Fire Delay (seconds)",
                 tooltip       = "Time from crossing peril threshold to auto-firing a shot."
-            },
-        },
-    },
+            }
+        }
+    }
 }

@@ -83,6 +83,10 @@ end)
 
 local function get_local_player_unit()
     local player = Managers and Managers.player and Managers.player:local_player(1)
+    if not player or not Managers.player:local_player(1) then
+    -- The local player isn't ready yet. Bail out.
+    return
+end
     return player and player.player_unit
 end
 
