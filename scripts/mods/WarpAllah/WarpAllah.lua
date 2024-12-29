@@ -80,6 +80,35 @@ mod:hook_safe(WarpCharge, "update_venting", function(dt, t, player, warp_charge_
     )
 end)
 
+
+local function get_local_player_unit()
+    local player = Managers and Managers.player and Managers.player:local_player(1)
+    return player and player.player_unit
+end
+
+local function get_peril_for_unit(unit)
+    local data = mod._warp_charge_data[unit]
+    if data then
+        return data.current_percentage or 0
+    end
+    return 0
+end
+
+local function get_state_for_unit(unit)
+    local data = mod._warp_charge_data[unit]
+    if data then
+        return data.state or "idle"
+    end
+    return "idle"
+end
+
+-- Example logic to detect if we are in the “pre-explosion” risk zone
+local function is_in_explosion_risk(unit)
+    local peril = get_peril_for_unit(unit)
+    local state = get_state_for_unit(unit)
+    return (peril >= 1.0 and state ~= "exploding")
+end
+
 ------------------------------------------------------------------------------
 -- 4. Possibly hook or override "can_vent" or "check_new_state" if you want 
 --    to detect transitions to “exploding.” But hooking the above 4 functions 
@@ -116,37 +145,76 @@ mod:hook("InputService", "_get", function(func, self, action_name)
     -- Original behavior
     local result = func(self, action_name)
 
-    -- Quick filter: only check certain action names
-    if action_name ~= "action_one_pressed" and
-       action_name ~= "action_one_hold" and
-       action_name ~= "action_one_release" and
-       action_name ~= "weapon_extra_pressed" and
-       action_name ~= "weapon_extra_hold" and
-       action_name ~= "weapon_extra_release"
-    then
-        return result
+    -- 4b) Possibly auto-fire if our test harness says so
+    -- We only “fake press” if we see the game is checking "action_one_pressed"
+    -- and mod._fire_shot_next_frame is true:
+    if mod._fire_shot_next_frame and action_name == "action_one_pressed" then
+        mod._fire_shot_next_frame = false
+        mod:echo("Auto-Firing M1 for test!")
+        return true  -- Fake a user press
     end
 
-    -- Identify local player
-    local player = Managers and Managers.player and Managers.player:local_player(1)
-    if not player then
-        return result
+    -- 4c) Now do our blocking check, but ONLY if enable_blocking == true
+    local blocking_enabled = mod:get("enable_blocking")
+    if blocking_enabled then
+        -- Only block certain actions, e.g. M1 (action_one) or special attack
+        if action_name == "action_one_pressed"
+        or action_name == "action_one_hold"
+        or action_name == "action_one_release"
+        or action_name == "weapon_extra_pressed"
+        or action_name == "weapon_extra_hold"
+        or action_name == "weapon_extra_release"
+        then
+            local player_unit = get_local_player_unit()
+            if player_unit and Unit.alive(player_unit) then
+                if is_in_explosion_risk(player_unit) then
+                    mod:echo("[WarpAllah] BLOCKING %s (current peril=%.2f)", 
+                        action_name, get_peril_for_unit(player_unit))
+                    return false
+                end
+            end
+        end
     end
 
-    local unit = player.player_unit
-    if not unit or not Unit.alive(unit) then
-        return result
-    end
-
-    -- Now, check if we are in the "risky" state from our tracked data
-    if is_in_explosion_risk(unit) then
-        mod:echo("[WarpAllah] Blocking input: %s (peril=%.2f)", 
-            action_name, mod._warp_charge_data[unit].current_percentage
-        )
-        return false
-    end
-
+    -- If we haven't blocked or forced any input, return the original
     return result
 end)
 
+------------------------------------------------------------------------------
+-- 5. The mod.update(dt) logic for test harness: countdown to auto-fire
+------------------------------------------------------------------------------
+
+function mod.update(dt)
+    local player_unit = get_local_player_unit()
+    if not player_unit or not Unit.alive(player_unit) then
+        return
+    end
+
+    local peril = get_peril_for_unit(player_unit)
+    local state = get_state_for_unit(player_unit)
+    local threshold = mod:get("test_peril_threshold") or 0.9
+
+    -- Start the shot timer if we cross threshold & not exploding
+    if not mod._test_active then
+        if peril >= threshold and state ~= "exploding" then
+            mod._test_active = true
+            mod._test_timer = mod:get("test_shot_delay") or 1.0
+            mod:echo("Peril=%.2f >= threshold=%.2f; starting shot timer (%.1fs).",
+                peril, threshold, mod._test_timer)
+        end
+    end
+
+    -- Decrement timer if active
+    if mod._test_active then
+        mod._test_timer = mod._test_timer - dt
+        if mod._test_timer <= 0 then
+            mod._test_active = false
+            mod._test_timer = 0
+            -- Queue an artificial M1 press for the next InputService:_get call
+            mod._fire_shot_next_frame = true
+        end
+    end
+end
+
+return mod
 -- Done! In real usage, you’d refine, remove debug prints, etc.
