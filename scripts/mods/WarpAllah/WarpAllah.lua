@@ -233,10 +233,6 @@ mod:hook("InputService", "_get", function(func, self, action_name)
             if is_forcesword and (action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra_release") then
                 return false
             end
-            -- Disable Reload/Quell when Warp Unbound is active
-            if is_warp_unbound_buff_active() and (action_name == "weapon_reload" or action_name == "weapon_reload_hold") then
-                return false
-            end
         end
     end
 
