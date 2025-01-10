@@ -226,7 +226,7 @@ mod:hook("InputService", "_get", function(func, self, action_name)
 
         if warp_unbound_bugfix_active and is_warp_unbound_buff_active() and is_perilous_weapon then
             -- Disable primary attack (LMB) for perilous weapons
-            if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" or action_name == "action_two_pressed" or action_name == "action_two_hold" or action_name == "action_two_release") then
+            if (not is_forcesword) and (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one_release" ) then
                 return false
             end
             -- Disable special attack keys for force swords
